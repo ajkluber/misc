@@ -48,7 +48,7 @@ if __name__ == "__main__":
         print "  couldn't determine folding cooperativity"
         error = 1
 
-    files = glob.glob("free[0-9][0-9][0-9][0-9]")
+    files = glob.glob("free*[0-9][0-9][0-9]")
     errF = [ abs(float(x.split("free")[1]) - Tf*10)  for x in files ]
     F = np.loadtxt(files[errF.index(min(errF))])
     #third = int(len(F)/5)

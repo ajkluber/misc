@@ -312,7 +312,6 @@ def get_contact_probability_versus_Q(name,iteration,n_bins):
         Qbins = np.linspace(minQ,maxQ,n_bins)
         np.savetxt("%s/iteration_%d/QivsQ.dat" % (name,iteration),Qi_vs_Q)
         np.savetxt("%s/iteration_%d/Qbins.dat" % (name,iteration),Qbins)
-
     else:
         print "  loading Qi vs Q"
         Qi_vs_Q = np.loadtxt("%s/iteration_%d/QivsQ.dat" % (name,iteration))

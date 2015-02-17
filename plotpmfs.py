@@ -8,8 +8,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
     parser.add_argument('--data', type=str, default="Q.dat", help='Name of timeseries to analyze.')
     parser.add_argument('--n_bins', type=int, default=25, help='Optional. number of bins along coordinate.')
-    parser.add_argument('--n_histos', type=int, default=100, help='Optional. number of bootstrapping histograms.')
-    parser.add_argument('--stride', type=int, default=10, help='Optional. number of frames to skip for subsampling.')
+    parser.add_argument('--n_histos', type=int, default=2, help='Optional. number of bootstrapping histograms.')
+    parser.add_argument('--stride', type=int, default=1, help='Optional. number of frames to skip for subsampling.')
     parser.add_argument('--title', type=str, default="", help='Optional. Title for plot.')
     parser.add_argument('--saveas', type=str, default="None", help='Optional. Filename to save plot.')
     args = parser.parse_args()
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         
     for i in range(len(temps)):
         filename = "%s/%s" % (temps[i],data)
-        F,F_err,bin_centers = get_F_with_error(filename,n_bins,10,1)
+        F,F_err,bin_centers = get_F_with_error(filename,n_bins,n_histos,stride)
         plt.plot(bin_centers,F,lw=2,color=colors[i],label=temps[i])
         plt.fill_between(bin_centers,F + F_err,F - F_err,facecolor=colors[i],alpha=0.25)
 
