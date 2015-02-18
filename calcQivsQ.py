@@ -1,13 +1,14 @@
+import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-def get_contact_probability_versus_Q(n_bins=30):
+def get_contact_probability_versus_Q(temps_file="long_temps_last",n_bins=30):
     ''' Calculate the contact probabilities versus Q '''
     if not os.path.exists("QivsQ.dat"):
         print "  calculating Qi vs Q"
         n_frames = 0.
-        temps = [ x.rstrip("\n") for x in open("long_temps_last", "r").readlines() ]
+        temps = [ x.rstrip("\n") for x in open(temps_file, "r").readlines() ]
         for i in range(len(temps)):
             T = temps[i]
             Q_temp = np.loadtxt("%s/Q.dat" % T)
@@ -54,4 +55,12 @@ def route_measure(Qbins,Qi_vs_Q,n_bins):
 
 
 if __name__ == "__main__":
-    get_contact_probability_versus_Q(n_bins=30)
+    parser = argparse.ArgumentParser(description='.')
+    parser.add_argument('--temps', type=str, default="long_temps_last", help='Name of file that hold temps')
+    parser.add_argument('--n_bins', type=int, default=30, help='Name of file that hold temps')
+    args = parser.parse_args()
+
+    temps_file = args.temps
+    n_bins = args.n_bins
+
+    get_contact_probability_versus_Q(temps_file=temps_file,n_bins=n_bins)

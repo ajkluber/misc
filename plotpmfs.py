@@ -7,6 +7,7 @@ from bootFQ import get_F_with_error
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
     parser.add_argument('--data', type=str, default="Q.dat", help='Name of timeseries to analyze.')
+    parser.add_argument('--file', type=str, default="long_temps_last", help='File holding temps to plot.')
     parser.add_argument('--n_bins', type=int, default=25, help='Optional. number of bins along coordinate.')
     parser.add_argument('--n_histos', type=int, default=2, help='Optional. number of bootstrapping histograms.')
     parser.add_argument('--stride', type=int, default=1, help='Optional. number of frames to skip for subsampling.')
@@ -15,6 +16,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = args.data 
+    file = args.file
     n_bins = args.n_bins 
     n_histos = args.n_histos
     stride = args.stride
@@ -23,7 +25,7 @@ if __name__ == "__main__":
 
     coord = data.split(".")[0]
 
-    temps = [ x.rstrip("\n") for x in open("long_temps_last","r").readlines() ]
+    temps = [ x.rstrip("\n") for x in open(file,"r").readlines() ]
     colors = ['b','r','g','k','cyan','magenta']
         
     for i in range(len(temps)):
