@@ -7,7 +7,7 @@ else
     for x in ${dirs}; do
         cd ${x}
         steps=`grep "Statistics over" md.log | awk '{print $3}'`
-        if [ $steps == $2 ]; then
+        if [ "$steps" == "$2" ]; then
             echo " ${x} done "
         else
             echo $steps does not match $2, restarting ${x}

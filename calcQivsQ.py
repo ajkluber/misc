@@ -1,7 +1,6 @@
 import argparse
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
 def get_contact_probability_versus_Q(temps_file="long_temps_last",n_bins=30):
     ''' Calculate the contact probabilities versus Q '''
