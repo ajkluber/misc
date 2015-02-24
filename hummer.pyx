@@ -70,7 +70,7 @@ def calculate_logL_smoothed(int n_bins, np.double_t deltaQ, np.double_t gamma,\
     for i in range(n_bins - 2):
         D2_sum += (D[i] - D[i + 1])**2
 
-    neg_lnL = neg_lnL + 0.5*(1./gamma**2)*D2_sum
+    neg_lnL = neg_lnL + 0.5*(1./(gamma**2))*D2_sum
 
     return neg_lnL
 

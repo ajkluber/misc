@@ -136,6 +136,7 @@ def monte_carlo_optimization(beta,n_bins,lag_frames,t_alpha,gamma,Q,n_attempts,n
     print "Estimating diffusion model using: lag_frames = %d  n_bins = %d " % (lag_frames,n_bins)
     if os.path.exists("Nij_%d_%d.dat" % (lag_frames,n_bins)):
         Nij = np.loadtxt("Nij_%d_%d.dat" % (lag_frames,n_bins))
+        #shutil.move
     else:
         print "Count observed transitions between bins"
         Nij = hummer.count_transitions(n_bins,n_frames,bins,Q)
@@ -150,7 +151,8 @@ def monte_carlo_optimization(beta,n_bins,lag_frames,t_alpha,gamma,Q,n_attempts,n
 
     Rij = np.zeros((n_bins,n_bins),float)
     for i in range(1,n_bins):
-        Rij[i,i - 1] = 1.
+        #Rij[i,i - 1] = 100.*np.random.rand()
+        Rij[i,i - 1] = 50.
 
     Rij = hummer.calculate_detailed_balance_R(n_bins,Rij,P)
     exp_tRij = linalg.expm(t_alpha*Rij)
@@ -164,35 +166,46 @@ def monte_carlo_optimization(beta,n_bins,lag_frames,t_alpha,gamma,Q,n_attempts,n
     r_ideal = 0.5
 
     g_accepts = np.zeros(n_bins,float)
-    R_accepts = np.zeros(n_bins,float)
     g_attempts = np.zeros(n_bins,float)
-    R_attempts = np.zeros(n_bins,float)
+
+    R_accepts = np.zeros(n_bins - 1,float)
+    R_attempts = np.zeros(n_bins - 1,float)
 
     #g_step = np.random.rand(n_bins)
     #R_step = np.random.rand(n_bins - 1)
     g_step = 0.1*np.ones(n_bins,float)
-    R_step = 0.5*np.ones(n_bins - 1,float)
+    R_step = np.ones(n_bins - 1,float)
     print "  Running %d equilibration steps:" % n_equil_steps
+    g_equil = np.zeros((n_equil_steps,n_bins),float)
+    R_equil = np.zeros((n_equil_steps,n_bins - 1),float)
     for n in range(n_equil_steps):
         #for x in range(n_attempts + np.random.randint(50)):
         for x in range(n_attempts):
             neg_lnL,Rij,P,g = attempt_step_g(neg_lnL,g,g_step,Rij,Nij,P,beta,t_alpha,n_bins,g_accepts,g_attempts,gamma,deltaQ)
             neg_lnL,Rij,P = attempt_step_Rij(neg_lnL,Rij,R_step,Nij,P,t_alpha,beta,n_bins,gamma,deltaQ,R_attempts,R_accepts)
 
-        if np.all(g_attempts):
-            ratio_g = g_accepts/g_attempts
-            g_step[ratio_g < 0.5] = g_step[ratio_g < 0.5]*0.95
-            g_step[ratio_g > 0.5] = g_step[ratio_g > 0.5]*1.05
-            #print(ratio_g)
-            #print(g_attempts)
-        if np.all(R_attempts):
-            ratio_R = R_accepts/R_attempts
-            R_step[ratio_R < 0.5] = R_step[ratio_R < 0.5]*0.95
-            R_step[ratio_R > 0.5] = R_step[ratio_R > 0.5]*1.05
-            #print(ratio_R)
+        #if np.all(g_attempts):
+        #    ratio_g = g_accepts/g_attempts
+        #    g_step[ratio_g < 0.5] *= 0.95
+        #    g_step[ratio_g > 0.5] *= 1.05
+        #    #print "g_step ",ratio_g
+        #    #print(g_attempts)
+        #if np.all(R_attempts):
+        #    ratio_R = R_accepts/R_attempts
+        #    R_step[ratio_R < 0.5] *= 0.95
+        #    R_step[ratio_R > 0.5] *= 1.05
+        #    #print(ratio_R)
+        #    #print "R_step ",R_step
         
         if (n % 10) == 0:
             print "   %5d  %20.4f" % (n,neg_lnL)
+        g_equil[n,:] = g
+        R_equil[n,:] = Rij[np.arange(n_bins - 1) + 1,np.arange(n_bins - 1)]
+
+    np.savetxt("g_equil.dat",g_equil)
+    np.savetxt("R_equil.dat",R_equil)
+    os.chdir("..")
+    raise SystemExit
 
     #############################################################################
     # Monte Carlo optimization of g and Rij. Production run.
@@ -210,21 +223,21 @@ def monte_carlo_optimization(beta,n_bins,lag_frames,t_alpha,gamma,Q,n_attempts,n
             neg_lnL,Rij,P,g = attempt_step_g(neg_lnL,g,g_step,Rij,Nij,P,beta,t_alpha,n_bins,g_accepts,g_attempts,gamma,deltaQ)
             neg_lnL,Rij,P = attempt_step_Rij(neg_lnL,Rij,R_step,Nij,P,t_alpha,beta,n_bins,gamma,deltaQ,R_attempts,R_accepts)
 
-        if np.all(g_attempts):
-            ratio_g = g_accepts/g_attempts
-            g_step[ratio_g < 0.5] = g_step[ratio_g < 0.5]*0.95
-            g_step[ratio_g > 0.5] = g_step[ratio_g > 0.5]*1.05
-            #g_step += ((ratio_g - 0.5)**9)*g_step
-            #g_step *= np.log(a*r_ideal + b)/np.log(a*ratio_g + b)
-            #print(ratio_g)
-            #print(g_attempts)
-        if np.all(R_attempts):
-            ratio_R = R_accepts/R_attempts
-            R_step[ratio_R < 0.5] = R_step[ratio_R < 0.5]*0.95
-            R_step[ratio_R > 0.5] = R_step[ratio_R > 0.5]*1.05
-            #R_step += ((ratio_R - 0.5)**9)*R_step
-            #R_step *= np.log(a*r_ideal + b)/np.log(a*ratio_R + b)
-            #print(ratio_R)
+        #if np.all(g_attempts):
+        #    ratio_g = g_accepts/g_attempts
+        #    g_step[ratio_g < 0.5] = g_step[ratio_g < 0.5]*0.95
+        #    g_step[ratio_g > 0.5] = g_step[ratio_g > 0.5]*1.05
+        #    #g_step += ((ratio_g - 0.5)**9)*g_step
+        #    #g_step *= np.log(a*r_ideal + b)/np.log(a*ratio_g + b)
+        #    #print(ratio_g)
+        #    #print(g_attempts)
+        #if np.all(R_attempts):
+        #    ratio_R = R_accepts/R_attempts
+        #    R_step[ratio_R < 0.5] = R_step[ratio_R < 0.5]*0.95
+        #    R_step[ratio_R > 0.5] = R_step[ratio_R > 0.5]*1.05
+        #    #R_step += ((ratio_R - 0.5)**9)*R_step
+        #    #R_step *= np.log(a*r_ideal + b)/np.log(a*ratio_R + b)
+        #    #print(ratio_R)
         
         if (n % 10) == 0:
             print "   %5d  %20.4f" % (n,neg_lnL)
@@ -252,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_bins', type=int, default=25, help='Num bins along coordinate. Default 25')
     parser.add_argument('--lag_frames', type=int, default=50, help='Lagtime as # frames. Default 50')
     parser.add_argument('--delta_t', type=float, default=0.5, help='Timestep size. Default 0.5 ps')
-    parser.add_argument('--gamma', type=float, default=0.01, help='Smoothing scale for D(x). Default 0.01')
+    parser.add_argument('--gamma', type=float, default=0.001, help='Smoothing scale for D(x). Default 0.01')
     args = parser.parse_args()
 
     coord = args.coord              # Name of reaction coordinate timeseries
@@ -262,9 +275,9 @@ if __name__ == "__main__":
     delta_t = args.delta_t          # Timestep size in ps
     gamma = args.gamma              # Scale over which D(x) should be enforced to be smooth
 
-    n_attempts = 50      # Number of times to attempt monte carlo moves per step
-    n_equil_steps = 500  # Number of monte carlo steps to reach equilibration
-    n_steps = 500        # Number of monte carlo steps for production run
+    n_attempts = 200      # Number of times to attempt monte carlo moves per step
+    n_equil_steps = 200  # Number of monte carlo steps to reach equilibration
+    n_steps = 200        # Number of monte carlo steps for production run
 
     t_alpha = delta_t*lag_frames      # Lagtime in ps
     beta = 1./(GAS_CONSTANT_KJ_MOL*T) 
