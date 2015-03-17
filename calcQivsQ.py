@@ -32,7 +32,8 @@ def get_contact_probability_versus_Q(temps_file="long_temps_last",n_bins=30):
                     Qi_vs_bins[n,:] += Qi[i,:]
                     counts[n] += 1.
 
-        Qi_vs_Q = (Qi_vs_bins.T/counts).T
+        
+        Qi_vs_Q = ((Qi_vs_bins[counts != 0].T)/counts[counts != 0]).T
         Qbins = np.linspace(minQ,maxQ,n_bins)
         np.savetxt("QivsQ.dat",Qi_vs_Q)
         np.savetxt("Qbins.dat",Qbins)

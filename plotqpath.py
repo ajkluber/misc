@@ -8,8 +8,6 @@ import matplotlib.pyplot as plt
 
 
 def plot_Q_vs_Qpath(name,iteration,nbins=50):
-
-
     os.chdir("%s/iteration_%d" % (name,iteration))
 
     temps = [ x.rstrip("\n") for x in open("long_temps_last","r").readlines() ]
@@ -32,16 +30,33 @@ def plot_Q_vs_Qpath(name,iteration,nbins=50):
     maxQ = max(Q)
     minQ = min(Q)
      
-    pylab.hist2d(Q,qpath,bins=nbins,norm=LogNorm())
-    pylab.xlabel("Folding progress Q",fontsize=18)
-    pylab.ylabel("Pathway Qpath",fontsize=18)
-    #cbar = pylab.colorbar()
-    #cbar.set_label("Free energy ($k_BT_f$)",fontsize=18)
-    pylab.title("%s it %d  Pathway compared to Vanilla" % (name,iteration),fontsize=18)
-    pylab.savefig("qpathvsQ.pdf")
-    pylab.savefig("qpathvsQ.png")
+    Hxy, xedges, yedges = np.histogram2d(Q,qpath,bins=nbins)
+    xcenters = 0.5*(xedges[1:] + xedges[:-1])
+    ycenters = 0.5*(yedges[1:] + yedges[:-1])
+    X,Y = np.meshgrid(xcenters,ycenters)
 
-    pylab.show()
+    pmf = -np.log(Hxy)
+    pmf[pmf != np.NaN] -= pmf[pmf != np.NaN].min()
+
+    maskpmf = np.ma.array(pmf,mask=np.isnan(pmf))
+
+    #plt.contourf(X,Y,maskpmf.T)
+    plt.contourf(X,Y,maskpmf.T,levels=np.arange(0,10,1))
+    plt.xlabel("Folding progress $Q$",fontsize=18)
+    plt.ylabel("Pathway $Q_{path}$",fontsize=18)
+    
+    #plt.ylim(-maxqpath - 1,maxqpath + 1)
+    plt.ylim(-50,60)
+    cbar = plt.colorbar()
+    cbar.set_label("Free energy ($k_BT_f$)",fontsize=18)
+    if iteration == 0:
+        plt.title("Homogeneous model pathway",fontsize=18)
+    else:
+        plt.title("Heterogeneous model pathway",fontsize=18)
+    plt.savefig("qpathvsQ.pdf")
+    plt.savefig("qpathvsQ.png")
+    plt.show()
+
     os.chdir("../..")
 
 def save_legend(name):
@@ -56,8 +71,7 @@ def save_legend(name):
 
     C = np.zeros((n_conts,n_conts),float)
     for i in range(n_conts):
-
-        C[contacts[i,1] - 1,contacts[i,1] - 1] = 
+        C[contacts[i,1] - 1,contacts[i,1] - 1] = 0
 
     os.chdir("../..")
 

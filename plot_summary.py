@@ -67,14 +67,14 @@ def get_pairwise_params(pairwise_params_file,model_params_file):
 
     return contacts,pairwise_param_assignment,model_params,pairwise_type,pairwise_other_params
 
-def get_contact_probability(name,iteration,n_residues,contacts,state_label,state_bound):
+def get_contact_probability(name,iteration,n_contacts,state_label,state_bound):
 
     cwd = os.getcwd()
     sub =  "%s/iteration_%d" % (name,iteration)
     os.chdir(sub)
     
     if not os.path.exists("cont_prob_%s.dat" % state_label):
-        contact_probability = np.zeros(len(contacts),float) 
+        contact_probability = np.zeros(n_contacts,float) 
         n_frames = 0.
         temps = [ x.rstrip("\n") for x in open("long_temps_last", "r").readlines() ]
         for i in range(len(temps)):
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     Contact_maps = []
     for X in range(len(state_labels)):
         plt.figure()
-        contact_probability = get_contact_probability(name,iteration,n_residues,contacts,state_labels[X],state_bounds[X])
+        contact_probability = get_contact_probability(name,iteration,n_contacts,state_labels[X],state_bounds[X])
         plot_contact_probability(name,iteration,n_residues,contacts,state_labels[X],state_bounds[X],contact_probability,individual=True)
         Contact_maps.append(contact_probability)
         print " Saving: %s/iteration_%d/contact_prob_%s.pdf          - %s contact probabilities" % (name,iteration,state_labels[X],state_labels[X])

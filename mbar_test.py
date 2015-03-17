@@ -13,10 +13,12 @@ Trying to get temperature dependent ddG's.
 import pickle
 import argparse
 import os
+import shutil
 import numpy as np
+import subprocess as sb
 #import matplotlib.pyplot as plt
 
-from pymbar import MBAR
+#from pymbar import MBAR
 
 import model_builder as mdb
 import project_tools as pjt
@@ -40,8 +42,8 @@ def jeff_WHAM_ddG(mutants):
         os.mkdir("wham_ddG")
 
     # Loop over mutations
-    #for k in range(len(mutants)):
-    for k in [0]:
+    for k in range(len(mutants)):
+    #for k in [0]:
 
         mut = mutants[k]
         print "  loading dHk_%s" % mut
@@ -68,6 +70,13 @@ def jeff_WHAM_ddG(mutants):
 
             temp_histogram = np.vstack((E[i,:],indicator[i,:],dH)).T
             np.savetxt("hist.%.2f" % sim_temps[i],temp_histogram,fmt="%10.5f %10.5f %10.5f")
+
+        print "  running wham"
+        # Run wham and rename results directory
+        if not os.path.exists("free"):
+            os.mkdir("free")
+        sb.call("java -jar WHAM.jar --config config",shell=True)
+        shutil.move("free","%s" % mut)
         os.chdir("..")
 
     os.chdir("..")
@@ -229,7 +238,7 @@ if __name__ == "__main__":
     #iteration = args.iteration
     
     name = "S6"
-    iteration = 0
+    iteration = 2
     
     os.chdir("%s/mutants" % name)
     mutants = pjt.parameter_fitting.ddG_MC2004.mutatepdbs.get_all_core_mutations()

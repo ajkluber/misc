@@ -95,4 +95,4 @@ if __name__ == "__main__":
     else:
         print "  Wham done! Plotted Cv and melting curve: short_wham/cv_and_melt.pdf"
         open("short_Tf","w").write("%.2f" % Tf)
-    plt.show()
+    #plt.show()

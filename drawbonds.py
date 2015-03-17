@@ -25,6 +25,7 @@ def draw_bond(atom1,atom2):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
     parser.add_argument('--pdb', type=str, default="Native.pdb", help='Name pdb.')
+    parser.add_argument('--bead_repr', type=str, default="CA", help='Bead representation')
     parser.add_argument('--saveas', type=str, default="bonds.tcl", help='Name of .')
     args = parser.parse_args()
 
@@ -53,14 +54,15 @@ if __name__ == "__main__":
         # First bond all the c-alphas together.
         tclstring += draw_bond(CA_indxs[i]-1,CA_indxs[i+1]-1)
         
-    sub = 0
-    # Loop over CA-CB pairs.
-    for i in range(n_residues):
-        # Then bond all c-alphas to their c-beta.
-        if res_types_unique[i] == "GLY":
-            # Skip glycine
-            sub += 1
-        else:
-            tclstring += draw_bond(CA_indxs[i]-1,CB_indxs[i-sub]-1)
+    if args.bead_repr == "CACB":
+        sub = 0
+        # Loop over CA-CB pairs.
+        for i in range(n_residues):
+            # Then bond all c-alphas to their c-beta.
+            if res_types_unique[i] == "GLY":
+                # Skip glycine
+                sub += 1
+            else:
+                tclstring += draw_bond(CA_indxs[i]-1,CB_indxs[i-sub]-1)
 
     open(saveas,"w").write(tclstring)

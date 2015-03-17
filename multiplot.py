@@ -8,7 +8,7 @@ from contact_phi import *
 global NAMES
 NAMES = ["S6","cp13","cp33","cp54","cp68","cp81"]
 global ITERATIONS
-ITERATIONS = [0,3]
+ITERATIONS = [0,2]
 
 def get_sec_struct_groups(name):
     """ Get a user defined set of Qfoldons from file """
@@ -423,7 +423,8 @@ def plot_all_Qfoldon_vs_Q():
     for i in range(len(NAMES)):
         temp_phi = []
         Qgrp_indxs, n_grps, colors, labels = get_foldon_groups(NAMES[i])
-        n_contacts = len(open("%s/contacts.dat" % NAMES[i],"r").readlines())
+        #n_contacts = len(open("%s/contacts.dat" % NAMES[i],"r").readlines())
+        n_contacts = 260
         for j in range(len(ITERATIONS)):
             ax = axes[i,j]
 
@@ -480,7 +481,8 @@ def plot_all_Route_vs_Q():
     all_phi_res = []
     for i in range(len(NAMES)):
         temp_phi = []
-        n_contacts = len(open("%s/contacts.dat" % NAMES[i],"r").readlines())
+        #n_contacts = len(open("%s/contacts.dat" % NAMES[i],"r").readlines())
+        n_contacts = 260
         for j in range(len(ITERATIONS)):
             ax = axes[i,j]
 
@@ -548,7 +550,6 @@ def plot_all_F_vs_Q():
             Bin_centers = []
             for i in range(len(Temps)): 
                 filename = "%s/iteration_%d/%s/Q.dat" % (Temps[i],NAMES[i],ITERATIONS[j])
-                F = np.loadtxt(""
                 Fs.append(F)
                 F_errs.append(F_err)
                 Bin_centers.append(bin_centers)
@@ -594,7 +595,7 @@ if __name__ == "__main__":
     #plot_all_contact_phi_res()
     #plot_all_Qfoldon_vs_Q()
     #plot_all_Qss_vs_Q()
-    #plot_all_ddG()
+    plot_all_ddG()
     #plot_all_contact_phi_ss()
     #plot_all_ddG_phi_ss()
-    plot_all_Route_vs_Q()
+    #plot_all_Route_vs_Q()
