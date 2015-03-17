@@ -8,13 +8,14 @@ def draw_contact(ndx1,ndx2,pairnum):
     tclstring +='lassign [atomselect%d get {x y z}] pos1\n' % (pairnum*2)
     tclstring +='lassign [atomselect%d get {x y z}] pos2\n' % (pairnum*2 + 1)
     tclstring +='draw color green\n'
-    tclstring +='draw line $pos1 $pos2 style solid width 2\n'
+    tclstring +='draw line $pos1 $pos2 style solid width 3\n'
     return tclstring
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
     parser.add_argument('--contacts', type=str, default="native_contacts.ndx", help='Name contact file.')
-    parser.add_argument('--start', type=int, default=0,help='Name contact file.')
+    parser.add_argument('--saveas', type=str, default="contacts.tcl", help='Name tcl file to save.')
+    parser.add_argument('--start', type=int, default=0,help='Starting index.')
     args = parser.parse_args()
 
     pairs = np.loadtxt(args.contacts,dtype=int,skiprows=1)
@@ -26,6 +27,4 @@ if __name__ == "__main__":
         tclstring += draw_contact(pairs[i,0],pairs[i,1],counter)
         counter += 1
 
-    #tclstring += 'mol modselect 0 top "all"'
-
-    open("conts.tcl","w").write(tclstring)
+    open(args.saveas,"w").write(tclstring)
