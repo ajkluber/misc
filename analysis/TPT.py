@@ -92,11 +92,11 @@ def partition_TP(Q,stateA,stateB):
             tempTP = [Q[i]]
             fromState = prevState
         elif ((currState == "A") or (currState == "B")) and (prevState == "TP"):
-            ## If you are ending a potential TP
+            # If you are ending a potential TP
             if currState == fromState:
                 notTP.extend(tempTP)
             else:
-                ## Reactive trajectory!
+                # Reactive trajectory!
                 #print fromState, currState, prevState, len(tempTP)     # DEBUGGING
                 TP.extend(tempTP)
                 TPlengths.append(float(len(tempTP)))

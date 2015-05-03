@@ -5,8 +5,6 @@ import numpy as np
 def calculate_contact_phi_values(name,pdb,n_residues):
     ''' Calculate the percentage of native structure for each residue.'''
 
-
-
     if not os.path.exists("contact_phi_res"):
         Tuse = open("long_temps_last","r").readlines()[0].rstrip("\n")
         contacts = np.loadtxt("%s/native_contacts.ndx" % Tuse,skiprows=1,dtype=int)

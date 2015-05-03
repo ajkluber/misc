@@ -32,6 +32,9 @@ def calculate_Qpath(early,late):
 
         qearly = np.sum(qimap[:,early],axis=1)
         qlate = np.sum(qimap[:,late],axis=1)
+        
+        np.savetxt("qearly.dat",qearly)
+        np.savetxt("qlate.dat",qlate)
 
         qpath = (qearly - qlate) - (n_early - n_late)*(qearly + qlate)/n_total
 

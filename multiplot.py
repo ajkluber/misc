@@ -6,7 +6,11 @@ import matplotlib.pyplot as plt
 from contact_phi import *
 
 global NAMES
-NAMES = ["S6","cp13","cp33","cp54","cp68","cp81"]
+#NAMES = ["S6","cp13","cp33","cp54","cp68","cp81"]
+#NAMES = ["S6","cp68","cp81"]
+NAMES = ["cp13","cp33","cp54"]
+#NAMES = ["S6","cp13","cp33"]
+#NAMES = ["cp54","cp68","cp81"]
 global ITERATIONS
 ITERATIONS = [0,2]
 
@@ -417,7 +421,8 @@ def plot_all_Qss_vs_Q():
 def plot_all_Qfoldon_vs_Q():
     """ Folding mechanism by contact formation versus Q """
 
-    fig, axes = plt.subplots(nrows=6,ncols=2,figsize=(10,17))
+    #fig, axes = plt.subplots(nrows=6,ncols=2,figsize=(10,17))
+    fig, axes = plt.subplots(nrows=3,ncols=2,figsize=(10,10))
     
     all_phi_res = []
     for i in range(len(NAMES)):
@@ -446,11 +451,13 @@ def plot_all_Qfoldon_vs_Q():
             ax.set_ylim(0,1) 
             if i == 0:
                 if j == 0:
-                    ax.set_title("Vanilla",fontsize=18)
+                    #ax.set_title("Vanilla",fontsize=18)
+                    ax.set_title("Homogeneous",fontsize=20)
                     lg = ax.legend(loc=2,fontsize=10)
                     #lg.draw_frame(False)
                 else:
-                    ax.set_title("Het. Iter. %d" % ITERATIONS[j],fontsize=18)
+                    #ax.set_title("Het. Iter. %d" % ITERATIONS[j],fontsize=18)
+                    ax.set_title("Heterogeneous",fontsize=20)
             if j == 1: 
                 #ax.set_aspect("equal",anchor="SW")
                 ax.set_yticklabels([]) 
@@ -468,9 +475,17 @@ def plot_all_Qfoldon_vs_Q():
     if not os.path.exists("plots"):
         os.mkdir("plots")
     #fig.suptitle("$\phi_{sim} = \\frac{\\Delta\\Delta G^{TS}}{\\Delta\\Delta G^{N}}$ by Free Energy Perturbation",fontsize=30)
-    fig.suptitle("$Q_{group}$ vs. $Q$ Folding Mechanism",fontsize=30)
-    plt.savefig("plots/S6_all_Qfoldons.pdf")
-    plt.savefig("plots/S6_all_Qfoldons.png")
+    #fig.suptitle("$Q_{group}$ vs. $Q$ Folding Mechanism",fontsize=30)
+    #plt.savefig("plots/S6_cp13_cp33_Qfoldons.pdf")
+    #plt.savefig("plots/S6_cp13_cp33_Qfoldons.png")
+    #plt.savefig("plots/cp54_cp68_cp81_Qfoldons.pdf")
+    #plt.savefig("plots/cp54_cp68_cp81_Qfoldons.png")
+    #plt.savefig("plots/S6_cp68_cp81_Qfoldons.pdf")
+    #plt.savefig("plots/S6_cp68_cp81_Qfoldons.png")
+    plt.savefig("plots/cp13_cp33_cp54_Qfoldons.pdf")
+    plt.savefig("plots/cp13_cp33_cp54_Qfoldons.png")
+    #plt.savefig("plots/S6_all_Qfoldons.pdf")
+    #plt.savefig("plots/S6_all_Qfoldons.png")
     plt.show()
 
 def plot_all_Route_vs_Q():
@@ -593,9 +608,9 @@ if __name__ == "__main__":
     pass
     #plot_all_ddG_phi_res()
     #plot_all_contact_phi_res()
-    #plot_all_Qfoldon_vs_Q()
+    plot_all_Qfoldon_vs_Q()
     #plot_all_Qss_vs_Q()
-    plot_all_ddG()
+    #plot_all_ddG()
     #plot_all_contact_phi_ss()
     #plot_all_ddG_phi_ss()
     #plot_all_Route_vs_Q()
