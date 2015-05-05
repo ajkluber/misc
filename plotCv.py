@@ -90,9 +90,9 @@ if __name__ == "__main__":
 
     os.chdir("..")
     if temps == "long":
-        print "  Wham done! Plotted Cv and melting curve: long_wham/cv_and_melt.pdf"
+        print "  Wham done! Plotted Cv and melting curve: long_wham/{cv.pdf,QvsT.pdf}"
         open("long_Tf","w").write("%.2f" % Tf)
     else:
-        print "  Wham done! Plotted Cv and melting curve: short_wham/cv_and_melt.pdf"
+        print "  Wham done! Plotted Cv and melting curve: short_wham/{cv.pdf,QvsT.pdf}"
         open("short_Tf","w").write("%.2f" % Tf)
     #plt.show()
