@@ -16,6 +16,19 @@ Potential
 EOF
         cd ../
     done
+elif [ $1 == gauss ]; then
+    for x in ${dirs}; do
+        cd ${x}
+        pwd
+        g_energy_sbm -f ener.edr -o energyterms -xvg none << EOF
+Bond
+Angle
+Proper-Dih.
+Gaussian
+Potential
+EOF
+        cd ../
+    done
 else
     for x in ${dirs}; do
         cd ${x}
@@ -27,6 +40,6 @@ Coulomb-(SR)
 Proper-Dih.
 Potential
 EOF
-        cd ../
+            cd ../
     done
 fi

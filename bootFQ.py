@@ -41,19 +41,19 @@ def generate_histograms(n_histos,n_bins,n_samples,cumul):
 
 def get_F_with_error(filename,n_bins,n_histos,stride):
 
-    ## Subsample the data.
+    # Subsample the data.
     q = np.loadtxt(filename)
     q_sub = q[::stride]
     n_samples = len(q_sub)
 
-    ## Calculate cumulative probability distribution of coordinate.
+    # Calculate cumulative probability distribution of coordinate.
     hist,bins = np.histogram(q_sub, bins=n_bins, density=False)
     hist_norm = hist / float(sum(hist))
     cumul = np.asarray([float(sum(hist_norm[:i])) for i in range(len(hist_norm))] + [1.]) 
     F = -np.log(hist_norm)
     F -= min(F) 
 
-    ## Estimate errorbars on free energy profile using bootstrapping.
+    # Estimate errorbars on free energy profile using bootstrapping.
     boot_histos = generate_histograms(n_histos,n_bins,n_samples,cumul)
     boot_pmf = -np.log(boot_histos)
     F_err = np.zeros(n_bins,float)
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     
     F,F_err,bin_centers = get_F_with_error(filename,n_bins,n_histos,stride)
 
-    ## Plot free energy profile with errorbars
+    # Plot free energy profile with errorbars
     coord = filename.split(".")[0]
     #plt.errorbar(bin_centers,F,yerr=F_err,lw=1.5,color='b',ecolor='b',elinewidth=1.5)
     plt.plot(bin_centers,F,lw=2,color='b')
