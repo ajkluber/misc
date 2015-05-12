@@ -95,7 +95,6 @@ def get_contact_probability(name,iteration,n_contacts,state_label,state_bound):
 
 def get_iteration_data(name,iteration):
     ''' Get summary data for iteration '''
-    n_residues = len(open("%s/Native.pdb" % name,"r").readlines()) - 1
 
     cwd = os.getcwd()
     sub =  "%s/iteration_%d" % (name,iteration)
@@ -103,7 +102,11 @@ def get_iteration_data(name,iteration):
 
     Temps = [ x.rstrip("\n") for x in open("long_temps_last","r").readlines() ]
     Tuse = open("long_temps_last","r").readlines()[0].rstrip("\n")
-    Tf = float(open("long_Tf","r").read().rstrip("\n"))
+    if not os.path.exists("long_Tf"):
+        Tf = float(Tuse.split("_")[0])
+    else:
+        Tf = float(open("long_Tf","r").read().rstrip("\n"))
+    n_residues = len(open("%s/Native.pdb" % Temps[0],"r").readlines()) - 1
 
     contacts,pairwise_param_assignment,epsilons,pairwise_type,pairwise_other_params = get_pairwise_params("%s/pairwise_params" % Tuse,"%s/model_params" % Tuse)
 
@@ -128,9 +131,16 @@ def get_iteration_data(name,iteration):
         state_bounds.append([int(line.split()[1]),int(line.split()[2])])
 
     ddgsim = np.loadtxt("newton/sim_feature.dat")
-    ddgsim_err = np.loadtxt("newton/sim_feature_err.dat")
+    if not os.path.exists("newton/sim_feature_err.dat"):
+        ddgsim_err = np.zeros(len(ddgsim))
+    else:
+        ddgsim_err = np.loadtxt("newton/sim_feature_err.dat")
+
     ddgexp = np.loadtxt("newton/target_feature.dat")
-    ddgexp_err = np.loadtxt("newton/target_feature_err.dat")
+    if not os.path.exists("newton/target_feature_err.dat"):
+        ddgexp_err = np.zeros(len(ddgsim))
+    else:
+        ddgexp_err = np.loadtxt("newton/target_feature_err.dat")
 
     ddGsim = np.zeros((len(ddgsim),2),float)
     ddGsim[:,0] = ddgsim
