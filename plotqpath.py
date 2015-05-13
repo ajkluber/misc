@@ -7,29 +7,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_Qearly_vs_Qlate(name,iteration,nbins=30):
+
+     
+    early = np.loadtxt("%s/iteration_0/early_conts" % name,dtype=int)
+    late = np.loadtxt("%s/iteration_0/late_conts" % name,dtype=int)
+
     os.chdir("%s/iteration_%d" % (name,iteration))
 
     temps = [ x.rstrip("\n") for x in open("long_temps_last","r").readlines() ]
 
     for i in range(len(temps)):
         if i == 0:
-            qpath = np.loadtxt("%s/qpath.dat" % temps[i])
-            Q = np.loadtxt("%s/Q.dat" % temps[i])
+            qearly = np.loadtxt("%s/qearly.dat" % temps[i])
+            qlate = np.loadtxt("%s/qlate.dat" % temps[i])
+            #Q = np.loadtxt("%s/Q.dat" % temps[i])
         else:
-            qpath = np.concatenate((qpath,np.loadtxt("%s/qpath.dat" % temps[i])))
-            Q = np.concatenate((Q,np.loadtxt("%s/Q.dat" % temps[i])))
-
-    early = np.loadtxt("early_conts",dtype=int)
-    late = np.loadtxt("late_conts",dtype=int)
+            qearly = np.concatenate((qearly,np.loadtxt("%s/qearly.dat" % temps[i])))
+            qlate = np.concatenate((qlate,np.loadtxt("%s/qlate.dat" % temps[i])))
+            #Q = np.concatenate((Q,np.loadtxt("%s/Q.dat" % temps[i])))
 
     n_contacts = len(early) + len(late)
 
-    maxqpath = max(qpath)
-    minqpath = min(qpath)
-    maxQ = max(Q)
-    minQ = min(Q)
-     
-    Hxy, xedges, yedges = np.histogram2d(Q,qpath,bins=nbins)
+    Hxy, xedges, yedges = np.histogram2d(qearly,qlate,bins=nbins)
     xcenters = 0.5*(xedges[1:] + xedges[:-1])
     ycenters = 0.5*(yedges[1:] + yedges[:-1])
     X,Y = np.meshgrid(xcenters,ycenters)
@@ -41,19 +40,19 @@ def plot_Qearly_vs_Qlate(name,iteration,nbins=30):
 
     #plt.contourf(X,Y,maskpmf.T)
     plt.contourf(X,Y,maskpmf.T,levels=np.arange(0,10,1))
-    plt.xlabel("Folding progress $Q$",fontsize=18)
-    plt.ylabel("Pathway $Q_{path}$",fontsize=18)
+    plt.xlabel("Q early",fontsize=18)
+    plt.ylabel("Q late",fontsize=18)
     
-    #plt.ylim(-maxqpath - 1,maxqpath + 1)
-    plt.ylim(-50,60)
+    #plt.ylim(0,len(late))
+    #plt.xlim(0,len(early))
     cbar = plt.colorbar()
     cbar.set_label("Free energy ($k_BT_f$)",fontsize=18)
     if iteration == 0:
         plt.title("Homogeneous model pathway",fontsize=18)
     else:
         plt.title("Heterogeneous model pathway",fontsize=18)
-    plt.savefig("qpathvsQ.pdf")
-    plt.savefig("qpathvsQ.png")
+    plt.savefig("qearlyvsqlate.pdf")
+    plt.savefig("qearlyvsqlate.png")
     plt.show()
 
     os.chdir("../..")
@@ -140,4 +139,5 @@ if __name__ == "__main__":
 
     save_legend(name)
 
-    plot_Q_vs_Qpath(name,iteration,nbins=nbins)
+    #plot_Q_vs_Qpath(name,iteration,nbins=nbins)
+    plot_Qearly_vs_Qlate(name,iteration,nbins=nbins)
