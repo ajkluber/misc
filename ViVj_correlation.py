@@ -14,7 +14,7 @@ global GAS_CONSTANT_KJ_MOL
 GAS_CONSTANT_KJ_MOL = 0.0083144621
 
 if __name__ == "__main__":
-    name = "PDZ"
+    name = "S6"
 
     model,fitopts = mdb.inputs.load_model(name)
 
@@ -65,16 +65,24 @@ if __name__ == "__main__":
 
     varTS_to_varU = varTS/varU
     varTS_to_varN = varTS/varN
-    varTS2_to_varUvarN = (varTS**2)/(varN*varU)
+    varTS2_to_varU_and_varN = (varTS**2)/(varN*varU)
+    varTS2_to_varU_or_varN = varTS/(varN + varU)
 
     contacts = model.pairs[model.fitting_params]
 
     deps = "\\langle\\delta\\epsilon_{ij}^2\\rangle"
     titles = ["$"+deps+"_{U}$","$"+deps+"_{TS}$","$"+deps+"_{N}$",
-             "$"+deps+"_{TS}/"+deps+"_{U}$","$"+deps+"_{TS}/"+deps+"_{N}$",
-             "$"+deps+"_{TS}^2/("+deps+"_{U}"+deps+"_{N})$"]
-    data_to_plot = [varU, varTS, varN, varTS_to_varU, varTS_to_varN, varTS2_to_varUvarN ]
-    saveas = ["eps_fluct_U","eps_fluct_TS","eps_fluct_N","eps_fluct_TS_U","eps_fluct_TS_N","eps_fluct_TS_U_and_N"]
+              "$"+deps+"_{TS}/"+deps+"_{U}$","$"+deps+"_{TS}/"+deps+"_{N}$",
+              "$"+deps+"_{TS}^2/("+deps+"_{U}"+deps+"_{N})$",
+              "$"+deps+"_{TS}/("+deps+"_{U} + "+deps+"_{N})$"]
+
+    saveas = ["eps_fluct_U","eps_fluct_TS","eps_fluct_N",
+              "eps_fluct_TS_U","eps_fluct_TS_N",
+              "eps_fluct_TS_U_and_N","eps_fluct_TS_U_or_N"]
+
+    data_to_plot = [varU, varTS, varN, 
+                    varTS_to_varU, varTS_to_varN, 
+                    varTS2_to_varU_and_varN, varTS2_to_varU_or_varN]
 
     if not os.path.exists("plots"):
         os.mkdir("plots")
@@ -82,7 +90,6 @@ if __name__ == "__main__":
     if not os.path.exists("fluct"):
         os.mkdir("fluct")
     
-
     # Save contact maps of:
     #   - U,TS,N fluctuations
     #   - TS fluctuations relative to N or U
@@ -101,7 +108,10 @@ if __name__ == "__main__":
         plt.ylim(0,model.n_residues)
         cbar = plt.colorbar()
         cbar.set_label(titles[i])
-        plt.title("Energy fluctuations  " + titles[i])
+        if i > 2:
+            plt.title("Relative energy fluctuations  " + titles[i])
+        else:
+            plt.title("Energy fluctuations  " + titles[i])
         plt.savefig("plots/"+saveas[i]+".png")
         plt.savefig("plots/"+saveas[i]+".pdf")
 
