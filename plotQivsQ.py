@@ -262,7 +262,7 @@ def get_some_iteration_data(name,iteration,n_bins):
     contacts, epsilons = extract_params.get_contacts_epsilons(pair_file,param_file)
 
     loops = contacts[:,1] - contacts[:,0]
-    n_residues = len(open("%s/Native.pdb" % name,"r").readlines()) - 1
+    n_residues = len(open("%s/iteration_%d/%s/Native.pdb" % (name,iteration,Tuse),"r").readlines()) - 1
 
     state_labels = []
     state_bounds = []

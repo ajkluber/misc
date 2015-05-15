@@ -14,9 +14,16 @@ global GAS_CONSTANT_KJ_MOL
 GAS_CONSTANT_KJ_MOL = 0.0083144621
 
 if __name__ == "__main__":
-    name = "S6"
+    parser = argparse.ArgumentParser(description='.')
+    parser.add_argument('--name', type=str, required=True, help='Name of directory.')
+    parser.add_argument('--iteration', type=int, default=None, help='Optional. Iteration')
+    args = parser.parse_args()
 
-    model,fitopts = mdb.inputs.load_model(name)
+    name = args.name
+    if args.iteration:
+        model,fitopts = mdb.inputs.load_model(name+"_%d" % args.iteration)
+    else:
+        model,fitopts = mdb.inputs.load_model(name)
 
     name = model.name
     iteration = fitopts['iteration']
