@@ -20,7 +20,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name = args.name
-    if args.iteration:
+    if args.iteration is not None:
         model,fitopts = mdb.inputs.load_model(name+"_%d" % args.iteration)
     else:
         model,fitopts = mdb.inputs.load_model(name)
@@ -48,24 +48,39 @@ if __name__ == "__main__":
     eps = model.model_param_values[model.fitting_params]
 
     # Average dimensionless potential energy for each state
-    Vp_U  = get_Vp_for_state(model,rij,U,Uframes)
-    Vp_TS = get_Vp_for_state(model,rij,TS,TSframes)
-    Vp_N  = get_Vp_for_state(model,rij,N,Nframes)
+    Eij_U  = beta*eps*get_Vp_for_state(model,rij,U,Uframes)
+    Eij_TS = beta*eps*get_Vp_for_state(model,rij,TS,TSframes)
+    Eij_N  = beta*eps*get_Vp_for_state(model,rij,N,Nframes)
 
-    Vp_U  *= eps
-    Vp_TS *= eps
-    Vp_N  *= eps
+    avgEij_U = np.mean(Eij_U,axis=0)
+    avgEij_TS = np.mean(Eij_TS,axis=0)
+    avgEij_N = np.mean(Eij_N,axis=0)
 
-    sumVp_U = np.mean(Vp_U,axis=0)
-    sumVp_TS = np.mean(Vp_TS,axis=0)
-    sumVp_N = np.mean(Vp_N,axis=0)
-
-    # Correlation matrices
-    # <ViVj> - <Vi><Vj>
-    corrU  = (np.dot(Vp_U.T,Vp_U)/float(Uframes)) - np.outer(sumVp_U,sumVp_U)
-    corrTS = (np.dot(Vp_TS.T,Vp_TS)/float(TSframes)) - np.outer(sumVp_TS,sumVp_TS)
-    corrN  = (np.dot(Vp_N.T,Vp_N)/float(Nframes)) - np.outer(sumVp_N,sumVp_N)
+    # Eigenvectors of the local energy covariance matrices are 
+    # ''normal coordinates'' in which perturbation models becomes 
+    # more or less exact.
+    # C_ij = [<E_i E_j> - <E_i><E_j>]
+    corrU  = (np.dot(Eij_U.T,Eij_U)/float(Uframes)) - np.outer(avgEij_U,avgEij_U)
+    corrTS = (np.dot(Eij_TS.T,Eij_TS)/float(TSframes)) - np.outer(avgEij_TS,avgEij_TS)
+    corrN  = (np.dot(Eij_N.T,Eij_N)/float(Nframes)) - np.outer(avgEij_N,avgEij_N)
     
+    egvals_U,  rotation_U = np.linalg.eig(corrU)
+    egvals_TS, rotation_TS = np.linalg.eig(corrTS)
+    egvals_N,  rotation_N = np.linalg.eig(corrN)
+
+    normal_U = np.dot(Eij_U,rotation_U)
+    normal_TS = np.dot(Eij_TS,rotation_TS)
+    normal_N = np.dot(Eij_N,rotation_N)
+
+    normal_std_U = np.std(normal_U,axis=0)
+    normal_std_TS = np.std(normal_TS,axis=0)
+    normal_std_N = np.std(normal_N,axis=0)
+
+    normal_avg_U = np.mean(normal_U,axis=0)
+    normal_avg_TS = np.mean(normal_TS,axis=0)
+    normal_avg_N = np.mean(normal_N,axis=0)
+
+
     varU = np.diag(corrU)
     varTS = np.diag(corrTS)
     varN = np.diag(corrN)
@@ -124,5 +139,7 @@ if __name__ == "__main__":
 
         np.savetxt("fluct/"+saveas[i]+".dat",data)
 
-
+    np.savetxt("fluct/corrU.dat",corrU)
+    np.savetxt("fluct/corrTS.dat",corrTS)
+    np.savetxt("fluct/corrN.dat",corrN)
     os.chdir("../..")
