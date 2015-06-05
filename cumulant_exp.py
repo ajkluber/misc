@@ -1,17 +1,11 @@
-""" Estimate energetic and entropic fluctuations
-
-Description
------------
-    Cho, Wolynes describes a simple metric for comparing energetic and entropic
-fluctuations in structure based models.
-
-"""
 
 import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from scipy.special import gamma
+from scipy.stats import kstat
 
 import model_builder as mdb
 import project_tools as pjt
@@ -19,90 +13,6 @@ from project_tools.parameter_fitting.util.util import *
 
 global GAS_CONSTANT_KJ_MOL
 GAS_CONSTANT_KJ_MOL = 0.0083144621
-
-def energy_entropy_fluctuations(name):
-
-    model, fitopts = mdb.inputs.load_model(name)
-
-    os.chdir("%s/iteration_%d" % (name,fitopts["iteration"]))
-
-    Tlist = [ x.rstrip("\n") for x in open("long_temps_last","r").readlines() ]
-
-    trajfiles = [ "%s/traj.xtc" % x for x in Tlist ]
-    native = "%s/Native.pdb" % Tlist[0]
-    rij = get_rij(model,trajfiles,native)
-
-    # Get contacts
-    Q = np.concatenate([ np.loadtxt("%s/Q.dat" % x) for x in Tlist ])
-    n_bins = 30
-    n,bins = np.histogram(Q,bins=n_bins)
-    Qavg = 0.5*(bins[1:] + bins[:-1])/float(max(Q))
-
-    # Get contact energy
-    Eij = get_Vp_for_state(model,rij,np.ones(rij.shape[0],bool),rij.shape[0])
-
-    eps = model.model_param_values[1::2]
-    Eij *= eps
-    #Eijtotal = np.sum(Eij,axis=1)
-    #Eijmean = np.mean(Eij,axis=1)
-
-    # Entropic cost depends on loop length
-    lp = (7.*0.38)  # lp = persistence length                                                        
-    pair_dists = np.array([ x[0] for x in model.pairwise_other_parameters[1::2] ])   
-    deltaV = ((0.5*3.*np.pi)**(3./2.))*((4.*np.pi/3.)*(pair_dists**3))/(lp**3)      
-    r0 = np.mean(pair_dists)
-    #deltaV = ((0.5*3.*np.pi)**(3./2.))*((4.*np.pi/3.)*(r0**3))/(lp**3)      
-    loops = model.pairs[1::2,1] - model.pairs[1::2,0]
-
-    #################################################################
-    # Energetic and entropic fluctuations
-    #################################################################
-    #Sij = np.log(deltaV/(loops**(3./2.)))                             # Jacobson-Stockmayer formula
-    #Sij = np.log(deltaV/(Qavg[i]**(3./2.)))                           # Flory mean field formula
-    #Sij = np.log(deltaV/((loops**(-3./2.)) + (Qavg[i]**(-3./2.))))    # Shoemaker interpolation
-
-    E = np.zeros(n_bins)
-    S = np.zeros(n_bins)
-    dE2 = np.zeros(n_bins)
-    dS2 = np.zeros(n_bins)
-    dEdS = np.zeros(n_bins)
-    for i in range(n_bins):
-        bin_frames = ((Q > bins[i]).astype(int)*(Q <= bins[i + 1]).astype(int)).astype(bool)
-        Econtacts_sum = np.sum(Eij[bin_frames],axis=1)
-        E[i] = np.mean(Esum_frames)
-        dE2[i] = np.mean(np.std(Eij[bin_frames],axis=1)**2)
-
-        Sij = np.log(deltaV/((loops**(-3./2.)) + (Qavg[i]**(-3./2.))))     # Shoemaker interpolation
-        contacts = (rij[bin_frames,1::2] <= 1.2*r0)
-        
-        Scontacts_sum = np.sum(contacts*Sij,axis=1)
-        S[i] = np.mean(Ssum_frames)
-        dS2[i] = np.mean(np.std(contacts*Sij,axis=1)**2)
-
-        map(np.dot,(Eij.T - Econtacts_sum),(Sij.T - Scontacts_sum))
-
-
-    if not os.path.exists("plots"):
-        os.mkdir("plots")
-
-    plt.figure()
-    plt.plot(Qavg,Efluct,'r',lw=2)
-    plt.xlabel("Q")
-    plt.ylabel("$\\langle \\delta \\epsilon^2 \\rangle")
-    plt.title("Fluctuations in contact energy")
-    plt.savefig("plots/Energy_fluct.pdf")
-    plt.savefig("plots/Energy_fluct.png")
-
-    plt.figure()
-    plt.plot(Qavg,Efluct)
-    plt.xlabel("$Q$")
-    plt.ylabel("$\\langle \\delta S^2 \\rangle")
-    plt.title("Fluctuations in contact entropy")
-    plt.savefig("plots/Entropy_fluct.pdf")
-    plt.savefig("plots/Entropy_fluct.png")
-    plt.show()
-
-    os.chdir("../..")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
@@ -139,6 +49,8 @@ if __name__ == "__main__":
 
     # Get state boundaries
     U,TS,N,Uframes,TSframes,Nframes = concatenate_state_indicators(Tlist,bounds,coord="Q.dat")
+    states = [U,TS,N]
+    state_frames = [Uframes,TSframes,Nframes]
 
     # Get contacts
     Q = np.concatenate([ np.loadtxt("%s/Q.dat" % x) for x in Tlist ])
@@ -146,11 +58,11 @@ if __name__ == "__main__":
     n,bins = np.histogram(Q,bins=n_bins)
     Qavg = 0.5*(bins[1:] + bins[:-1])/float(max(Q))
 
+    loops = model.pairs[1::2,1] - model.pairs[1::2,0]
+
     # Get contact energy
     eps = model.model_param_values[1::2]
     Eij = beta*eps*get_Vp_for_state(model,rij,np.ones(rij.shape[0],bool),rij.shape[0])
-    #Eijtotal = np.sum(Eij,axis=1)
-    #Eijmean = np.mean(Eij,axis=1)
 
     avgEij_U = np.mean(Eij[U,:],axis=0)
     avgEij_TS = np.mean(Eij[TS,:],axis=0)
@@ -160,70 +72,65 @@ if __name__ == "__main__":
     stdEij_TS = np.std(Eij[TS,:],axis=0)
     stdEij_N = np.std(Eij[N,:],axis=0)
 
-    # Entropic cost depends on loop length
-    lp = (7.*0.38)  # lp = persistence length is about 7 residues
-    pair_dists = np.array([ x[0] for x in model.pairwise_other_parameters[1::2] ])   
-    deltaV = ((0.5*3.*np.pi)**(3./2.))*((4.*np.pi/3.)*(pair_dists**3))/(lp**3)      
-    r0 = np.mean(pair_dists)
-    #deltaV = ((0.5*3.*np.pi)**(3./2.))*((4.*np.pi/3.)*(r0**3))/(lp**3)      
-    loops = model.pairs[1::2,1] - model.pairs[1::2,0]
+    alpha = 1.
 
-    contact_avgE = np.zeros((n_bins,Eij.shape[1]))
-    dcontact_E = np.zeros((n_bins,Eij.shape[1]))
-    dcontact_S = np.zeros((n_bins,Eij.shape[1]))
-    contact_Q = np.zeros((n_bins,Eij.shape[1]))
-    dQ2 = np.zeros((n_bins,Eij.shape[1]))
-    E = np.zeros(n_bins)
-    S = np.zeros(n_bins)
-    dE2 = np.zeros(n_bins)
-    dS2 = np.zeros(n_bins)
-    dEdS = np.zeros(n_bins)
+    dG_FEP = np.zeros((n_bins,Eij.shape[1]))
+    dG_cumulant_exp = np.array([ np.zeros((n_bins,Eij.shape[1])) for x in range(4) ])
     for i in range(n_bins):
-    #for i in [0]:
+    #for i in range(3):
+        #bin_frames = states[i]
         bin_frames = ((Q > bins[i]).astype(int)*(Q <= bins[i + 1]).astype(int)).astype(bool)
-        dcontact_E[i,:] = np.std(Eij[bin_frames,:],axis=0)**2
-        contact_avgE[i,:] = np.mean(Eij[bin_frames,:],axis=0)
+        n_frames = float(sum(bin_frames))
 
-        Econtacts_sum = np.sum(Eij[bin_frames,:],axis=1)
-        E[i] = np.mean(Econtacts_sum)
-        dE2[i] = np.mean(np.std(Eij[bin_frames,:],axis=1)**2)
-
-        Sij = np.log(deltaV/((loops**(-3./2.)) + (Qavg[i]**(-3./2.))))     # Shoemaker interpolation
-        contacts = (rij[bin_frames,1::2] <= 1.2*pair_dists)
-
-        contact_Q[i,:] = np.mean(contacts,axis=0)
-        dQ2[i,:] = np.std(contacts,axis=0)**2
-
-        Scontacts = contacts*Sij
-        Scontacts_sum = np.sum(Scontacts,axis=1)
-        S[i] = np.mean(Scontacts_sum)
-        dS2[i] = np.mean(np.std(Scontacts,axis=1)**2)
-        dcontact_S[i,:] = np.std(Scontacts,axis=0)**2
-
-        dE = (Eij[bin_frames,:].T - np.mean(Eij[bin_frames,:],axis=1)).T
-        dS = (Scontacts.T - np.mean(Scontacts,axis=1)).T
-        dEdS[i] = np.mean(map(np.dot,dE,dS))
+        dG_FEP[i,:]  = -np.log(np.sum(np.exp(alpha*Eij[bin_frames,:]),axis=0)/n_frames)
+        
+        for k in range(1,5):
+            for j in range(Eij.shape[1]):
+                dG_cumulant_exp[k - 1,i,j] = ((alpha**k)/gamma(k + 1))*kstat(Eij[bin_frames,j],n=k)
 
 
+    dG_fluct_sum = -np.sum(dG_cumulant_exp[1:,:,:],axis=0)
+    dG_cumu_mean = -dG_cumulant_exp[0,:,:]
 
-    baseline_fluct = dcontact_E[0,:] + dcontact_E[-1,:]
+    dG_cumulant_sum = -np.sum(dG_cumulant_exp,axis=0)
 
 
-    relative_TS_fluct = (stdEij_TS**2)/(0.5*(stdEij_U**2 + stdEij_N**2))
+    if not os.path.exists("FEPestimate"):
+        os.mkdir("FEPestimate")
+    os.chdir("FEPestimate")
 
-    if not os.path.exists("fluct"):
-        os.mkdir("fluct")
-    os.chdir("fluct")
+    dG_cumulant = np.array([ np.zeros((3,Eij.shape[1])) for x in range(4) ])
+    for i in range(3):
+        bin_frames = states[i]
+        n_frames = float(sum(bin_frames))
+        for k in range(1,5):
+            for j in range(Eij.shape[1]):
+                dG_cumulant[k - 1,i,j] = ((alpha**k)/gamma(k + 1))*kstat(Eij[bin_frames,j],n=k)
 
+    dG_cumulant_U  = -np.sum(dG_cumulant[1:,0,:],axis=0) 
+    dG_cumulant_TS = -np.sum(dG_cumulant[1:,1,:],axis=0) 
+    dG_cumulant_N  = -np.sum(dG_cumulant[1:,2,:],axis=0) 
+
+    dG_cumulant_U_avg  = -dG_cumulant[0,0,:]
+    dG_cumulant_TS_avg = -dG_cumulant[0,1,:]
+    dG_cumulant_N_avg  = -dG_cumulant[0,2,:]
+    
     np.savetxt("Qavg.dat",Qavg)
-    np.savetxt("dE2.dat",dE2)
-    np.savetxt("dS2.dat",dS2)
-    np.savetxt("contact_Q.dat",contact_Q)
-    np.savetxt("dQ2.dat",dQ2)
-    np.savetxt("contact_avgE.dat",contact_avgE)
-    np.savetxt("dcontact_E.dat",dcontact_E)
-    np.savetxt("dcontact_S.dat",dcontact_E)
-    #np.savetxt("")
+    #for k in range(5):
+
+
+    #plt.figure()
+    #plt.plot(dG_FEP[0,:],dG_cumulant_sum[0,:],'r.')
+    #plt.plot(dG_FEP[1,:],dG_cumulant_sum[1,:],'g.')
+    #plt.plot(dG_FEP[2,:],dG_cumulant_sum[2,:],'b.')
+
+    #plt.plot([0],[0],'r.',label="U")
+    #plt.plot([0],[0],'g.',label="TS")
+    #plt.plot([0],[0],'b.',label="N")
+
+    #plt.show()
+
+    raise SystemExit
 
     Y = dcontact_E/(0.5*(stdEij_U**2 + stdEij_N**2))
 

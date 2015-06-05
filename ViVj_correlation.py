@@ -56,6 +56,7 @@ if __name__ == "__main__":
     avgEij_TS = np.mean(Eij_TS,axis=0)
     avgEij_N = np.mean(Eij_N,axis=0)
 
+
     # Eigenvectors of the local energy covariance matrices are 
     # ''normal coordinates'' in which perturbation models becomes 
     # more or less exact.
