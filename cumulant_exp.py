@@ -2,6 +2,8 @@
 import os
 import argparse
 import numpy as np
+import matplotlib 
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from scipy.special import gamma
@@ -84,20 +86,26 @@ if __name__ == "__main__":
 
         dG_FEP[i,:]  = -np.log(np.sum(np.exp(alpha*Eij[bin_frames,:]),axis=0)/n_frames)
         
+        print "Bin %4d" % i
         for k in range(1,5):
             for j in range(Eij.shape[1]):
                 dG_cumulant_exp[k - 1,i,j] = ((alpha**k)/gamma(k + 1))*kstat(Eij[bin_frames,j],n=k)
 
 
+    if not os.path.exists("FEPestimate"):
+        os.mkdir("FEPestimate")
+    os.chdir("FEPestimate")
+
+
+    for i in range(4):
+        np.save("cumulant_exp_term_%d_vs_Q.npy" % i,dG_cumulant_exp[i,:,:])
+
+    raise SystemExit
+
     dG_fluct_sum = -np.sum(dG_cumulant_exp[1:,:,:],axis=0)
     dG_cumu_mean = -dG_cumulant_exp[0,:,:]
 
     dG_cumulant_sum = -np.sum(dG_cumulant_exp,axis=0)
-
-
-    if not os.path.exists("FEPestimate"):
-        os.mkdir("FEPestimate")
-    os.chdir("FEPestimate")
 
     dG_cumulant = np.array([ np.zeros((3,Eij.shape[1])) for x in range(4) ])
     for i in range(3):
@@ -115,9 +123,6 @@ if __name__ == "__main__":
     dG_cumulant_TS_avg = -dG_cumulant[0,1,:]
     dG_cumulant_N_avg  = -dG_cumulant[0,2,:]
     
-    np.savetxt("Qavg.dat",Qavg)
-    #for k in range(5):
-
 
     #plt.figure()
     #plt.plot(dG_FEP[0,:],dG_cumulant_sum[0,:],'r.')
@@ -128,7 +133,16 @@ if __name__ == "__main__":
     #plt.plot([0],[0],'g.',label="TS")
     #plt.plot([0],[0],'b.',label="N")
 
-    #plt.show()
+    #plt.figure()
+    #plt.plot(dG_FEP[0,:],-dG_cumulant[0,0,:]-dG_cumulant[1,0,:],'r.')
+    #plt.plot(dG_FEP[1,:],-dG_cumulant[0,1,:]-dG_cumulant[1,1,:],'g.')
+    #plt.plot(dG_FEP[2,:],-dG_cumulant[0,2,:]-dG_cumulant[1,2,:],'b.')
+
+    #plt.plot([0],[0],'r.',label="U")
+    #plt.plot([0],[0],'g.',label="TS")
+    #plt.plot([0],[0],'b.',label="N")
+
+    plt.show()
 
     raise SystemExit
 
@@ -214,8 +228,6 @@ if __name__ == "__main__":
     plt.savefig("TS_eps_fluct_relative.pdf")
     plt.savefig("TS_eps_fluct_relative.eps")
     
-
     #plt.show()
-
 
     os.chdir("../../..")

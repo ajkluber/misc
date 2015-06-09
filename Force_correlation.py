@@ -4,7 +4,7 @@ import sys
 import argparse
 import time
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 import model_builder as mdb
 
@@ -101,6 +101,15 @@ if __name__ == "__main__":
     egvals_TS, rotation_TS = np.linalg.eig(HessianTS)
     egvals_N,  rotation_N = np.linalg.eig(HessianN)
 
+    if not os.path.exists("Hessian"):
+        os.mkdir("Hessian")
+    os.chdir("Hessian")
+
+    np.save("Hessian_U.npy",HessianU)
+    np.save("Hessian_TS.npy",HessianTS)
+    np.save("Hessian_N.npy",HessianN)
+
+    os.chdir("../../..")
 
     """
     normal_U = np.dot(Forceij_U,rotation_U)

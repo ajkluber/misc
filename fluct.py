@@ -114,7 +114,6 @@ if __name__ == "__main__":
     name = args.name
     iteration = args.iteration
     n_bins = args.nbins
-    #name = "S6"
 
     #energy_entropy_fluctuations(name)
 
@@ -205,11 +204,13 @@ if __name__ == "__main__":
         dEdS[i] = np.mean(map(np.dot,dE,dS))
 
 
-
     baseline_fluct = dcontact_E[0,:] + dcontact_E[-1,:]
 
 
     relative_TS_fluct = (stdEij_TS**2)/(0.5*(stdEij_U**2 + stdEij_N**2))
+
+    ddG_vs_Q = -0.5*(dcontact_E - (stdEij_U**2)) - (contact_avgE - avgEij_U)
+    ddG_deriv_vs_Q = np.gradient(ddG_vs_Q,Qavg[1] - Qavg[0],Qavg[1] - Qavg[0])[0]
 
     if not os.path.exists("fluct"):
         os.mkdir("fluct")
@@ -218,12 +219,14 @@ if __name__ == "__main__":
     np.savetxt("Qavg.dat",Qavg)
     np.savetxt("dE2.dat",dE2)
     np.savetxt("dS2.dat",dS2)
+    np.savetxt("dEdS.dat",dEdS)
     np.savetxt("contact_Q.dat",contact_Q)
     np.savetxt("dQ2.dat",dQ2)
     np.savetxt("contact_avgE.dat",contact_avgE)
     np.savetxt("dcontact_E.dat",dcontact_E)
     np.savetxt("dcontact_S.dat",dcontact_E)
-    #np.savetxt("")
+    np.savetxt("ddG_vs_Q.dat",ddG_vs_Q)
+    np.savetxt("ddG_deriv_vs_Q.dat",ddG_deriv_vs_Q)
 
     Y = dcontact_E/(0.5*(stdEij_U**2 + stdEij_N**2))
 
@@ -254,13 +257,23 @@ if __name__ == "__main__":
 
     plt.figure()
     for i in range(Eij.shape[1]):
-        plt.plot(Qavg,0.5*(dcontact_E[:,i] - (stdEij_U[i]**2)) - (contact_avgE[:,i] - avgEij_U[i]),color=cm.gnuplot2((relative_TS_fluct[i] - relative_TS_fluct.min())/relative_TS_fluct.max()))
+        plt.plot(Qavg,ddG_vs_Q[:,i],color=cm.gnuplot2((relative_TS_fluct[i] - relative_TS_fluct.min())/relative_TS_fluct.max()))
     plt.xlabel("$Q$",fontsize=20)
-    plt.ylabel("$\\Delta\\Delta G = \\frac{\\Delta\\sigma^2_{E_i}}{2} - \\Delta\\overline{E}_i$",fontsize=16)
+    plt.ylabel("$\\Delta\\Delta G = -\\frac{\\Delta\\sigma^2_{E_i}}{2} - \\Delta\\overline{E}_i$",fontsize=16)
     plt.title("$\\Delta\\Delta G$ model with fluctuations",fontsize=18)
     plt.savefig("ddG_vs_Q_with_fluctuations.png")
     plt.savefig("ddG_vs_Q_with_fluctuations.pdf")
     plt.savefig("ddG_vs_Q_with_fluctuations.eps")
+
+    plt.figure()
+    for i in range(Eij.shape[1]):
+        plt.plot(Qavg,ddG_deriv_vs_Q[:,i],color=cm.gnuplot2((relative_TS_fluct[i] - relative_TS_fluct.min())/relative_TS_fluct.max()))
+    plt.xlabel("$Q$",fontsize=20)
+    plt.ylabel("$\\frac{d\\Delta\\Delta G}{dQ}$",fontsize=16,rotation="horizontal")
+    plt.title("$\\Delta\\Delta G$ model with fluctuations",fontsize=18)
+    plt.savefig("ddG_deriv_vs_Q.png")
+    plt.savefig("ddG_deriv_vs_Q.pdf")
+    plt.savefig("ddG_deriv_vs_Q.eps")
 
     plt.figure()
     for i in range(Eij.shape[1]):
@@ -307,8 +320,6 @@ if __name__ == "__main__":
     plt.savefig("TS_eps_fluct_relative.pdf")
     plt.savefig("TS_eps_fluct_relative.eps")
     
-
-    #plt.show()
-
+    plt.show()
 
     os.chdir("../../..")

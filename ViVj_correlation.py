@@ -4,6 +4,8 @@ import sys
 import argparse
 import time
 import numpy as np
+import matplotlib 
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import model_builder as mdb
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     varTS_to_varU = varTS/varU
     varTS_to_varN = varTS/varN
     varTS2_to_varU_and_varN = (varTS**2)/(varN*varU)
-    varTS2_to_varU_or_varN = varTS/(varN + varU)
+    varTS2_to_varU_or_varN = 2.*varTS/(varN + varU)
 
     contacts = model.pairs[model.fitting_params]
 
