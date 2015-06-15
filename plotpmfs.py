@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     plt.legend()
     plt.xlabel("%s" % coord,fontsize=20)
-    plt.ylabel("F(%s) (k$_B$)" % coord,fontsize=20)
+    plt.ylabel("F(%s) (k$_B$T)" % coord,fontsize=20)
     plt.title(title)
     if saveas is not None:
         plt.savefig(saveas)
