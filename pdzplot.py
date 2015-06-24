@@ -1,9 +1,10 @@
-
 import argparse
 import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
+from misc.cube_cmap import cubecmap, cubeYFcmap
 
 def get_qearly_qlate(name,iteration,nbins=30):
     early = np.loadtxt("%s/iteration_0/early_conts" % name,dtype=int)
@@ -59,6 +60,7 @@ def plot_Qearly_vs_Qlate(name,iteration,nbins=30):
     #cmap = plt.get_cmap("hot")
     #cmap = plt.get_cmap("cool")
     cmap = plt.get_cmap("summer")
+
     axes[0].set_aspect(1)
     axes[0].contourf(x0,y0,maskpmf0.t,levels=np.arange(0,10,1),cmap=cmap)
     axes[0].set_xlabel("$q_{early}$",fontsize=18)
@@ -180,6 +182,8 @@ if __name__ == "__main__":
     #plot_Qearly_vs_Qlate(name,iteration,nbins=nbins)
     X0,Y0,maskpmf0,X_it,Y_it,maskpmf_it = get_qearly_qlate(name,iteration,nbins=nbins)
 
+    levels = np.arange(0,10.5,0.5)
+    cbarlevels = range(0,11,1)
     
     # plot
     fig = plt.figure(figsize=(13.9,6.125))
@@ -190,11 +194,13 @@ if __name__ == "__main__":
     #cmap = plt.get_cmap("jet")
     #cmap = plt.get_cmap("cool")
     #cmap = plt.get_cmap("gnuplot")
-    cmap = plt.get_cmap("summer")
+    #cmap = plt.get_cmap("summer")
     #cmap = plt.get_cmap("Blues_r")
+    cmap = cubecmap     # With orange at top values
+    #cmap = cubeYFcmap
 
     ax0.set_autoscale_on(False)
-    ax0.contourf(X0,Y0,maskpmf0.T,levels=np.arange(0,10,1),cmap=cmap)
+    ax0.contourf(X0,Y0,maskpmf0.T,levels=levels,cmap=cmap)
     ax0.set_xlim(0,xbins[-2])
     ax0.set_ylim(0,ybins[-2])
     ax0.set_yticks(range(0,int(round(ybins[-2])),20))
@@ -204,7 +210,7 @@ if __name__ == "__main__":
     ax0.set_title("Homogeneous",fontsize=20)
 
     ax1.set_autoscale_on(False)
-    cs = ax1.contourf(X_it,Y_it,maskpmf_it.T,levels=np.arange(0,10,1),cmap=cmap)
+    cs = ax1.contourf(X_it,Y_it,maskpmf_it.T,levels=levels,cmap=cmap)
     plt.setp(ax1.get_yticklabels(),visible=False)
     ax1.set_xticks(range(20,int(round(xbins[-2])),20))
     ax1.set_xlim(0,xbins[-2])
@@ -216,14 +222,15 @@ if __name__ == "__main__":
     cbar_ax = fig.add_axes([0.83, 0.1, 0.025, 0.8])
     cbar = fig.colorbar(cs, cax=cbar_ax)
     cbar.set_label("Free Energy / $k_BT_f$",fontsize=20)
+    cbar.set_ticks(cbarlevels)
 
     fig.subplots_adjust(wspace=0)
 
     if not os.path.exists("plots"):
         os.mkdir("plots")
     os.chdir("plots")
-    plt.savefig("pdz_qearlyvsqlate_0_%d.png" % iteration)
-    plt.savefig("pdz_qearlyvsqlate_0_%d.pdf" % iteration)
-    plt.savefig("pdz_qearlyvsqlate_0_%d.eps" % iteration)
+    plt.savefig("pdz_qearlyvsqlate_0_%d.png" % iteration,dpi=800,bbox_inches='tight')
+    plt.savefig("pdz_qearlyvsqlate_0_%d.pdf" % iteration,dpi=800,bbox_inches='tight')
+    plt.savefig("pdz_qearlyvsqlate_0_%d.eps" % iteration,dpi=800,bbox_inches='tight')
     plt.show()
     os.chdir("..")

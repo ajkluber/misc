@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from bootFQ import get_F_with_error
+#from bootFQ import get_F_with_error
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='.')
@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_histos', type=int, default=2, help='Optional. number of bootstrapping histograms.')
     parser.add_argument('--stride', type=int, default=1, help='Optional. number of frames to skip for subsampling.')
     parser.add_argument('--title', type=str, default="", help='Optional. Title for plot.')
+    parser.add_argument('--all', action='store_true', help='Optional. Concatenate .')
     parser.add_argument('--saveas', type=str, default=None, help='Optional. Filename to save plot.')
     args = parser.parse_args()
 
@@ -28,11 +29,46 @@ if __name__ == "__main__":
     temps = [ x.rstrip("\n") for x in open(file,"r").readlines() ]
     colors = ['b','r','g','k','cyan','magenta']
         
-    for i in range(len(temps)):
-        filename = "%s/%s" % (temps[i],data)
-        F,F_err,bin_centers = get_F_with_error(filename,n_bins,n_histos,stride)
-        plt.plot(bin_centers,F,lw=2,color=colors[i],label=temps[i])
-        plt.fill_between(bin_centers,F + F_err,F - F_err,facecolor=colors[i],alpha=0.25)
+    if args.all:
+        # Sort temperatures
+        uniq_Tlist = []
+        Qlist = []
+        print " Gathering unique Tlist"
+        for i in range(len(temps)):
+            T = temps[i].split("_")[0]
+            if T not in uniq_Tlist:
+                " Adding ",T," to ", uniq_Tlist
+                uniq_Tlist.append(T)
+                Qlist.append(np.loadtxt("%s/%s" % (temps[i],data)))
+            else:
+                " Appending ",T," to ", uniq_Tlist
+                idx = uniq_Tlist.index(T)
+                Qlist[idx] = np.concatenate((Qlist[idx],np.loadtxt("%s/%s" % (temps[i],data))))
+
+        for i in range(len(Qlist)):
+            # Subsample the data.
+            q_sub = Qlist[i][::stride]
+            q_sub += np.random.normal(size=len(q_sub))
+            print len(q_sub)
+            n,bins = np.histogram(q_sub, bins=n_bins, density=False)
+            bin_centers = 0.5*(bins[1:] + bins[:-1])
+            F = -np.log(n)
+            F -= min(F) 
+            plt.plot(bin_centers,F,lw=2,color=colors[i],label=uniq_Tlist[i])
+    else:
+        for i in range(len(temps)):
+            filename = "%s/%s" % (temps[i],data)
+            # Subsample the data.
+            q = np.loadtxt(filename)
+            q_sub = q[::stride]
+
+            # Calculate cumulative probability distribution of coordinate.
+            n,bins = np.histogram(q_sub, bins=n_bins, density=False)
+            bin_centers = 0.5*(bins[1:] + bins[:-1])
+            F = -np.log(n)
+            F -= min(F) 
+
+            plt.plot(bin_centers,F,lw=2,color=colors[i],label=temps[i])
 
     plt.legend()
     plt.xlabel("%s" % coord,fontsize=20)
