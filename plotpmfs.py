@@ -27,7 +27,7 @@ if __name__ == "__main__":
     coord = data.split(".")[0]
 
     temps = [ x.rstrip("\n") for x in open(file,"r").readlines() ]
-    colors = ['b','r','g','k','cyan','magenta']
+    colors = ['b','r','g','k','cyan','magenta','salmon','darkgreen']
         
     if args.all:
         # Sort temperatures
@@ -37,13 +37,20 @@ if __name__ == "__main__":
         for i in range(len(temps)):
             T = temps[i].split("_")[0]
             if T not in uniq_Tlist:
-                " Adding ",T," to ", uniq_Tlist
+                print " Adding ",T," to ", uniq_Tlist
                 uniq_Tlist.append(T)
-                Qlist.append(np.loadtxt("%s/%s" % (temps[i],data)))
+                Qtemp = np.loadtxt("%s/%s" % (temps[i],data))
+                if data == "Q.dat":
+                    Qtemp += np.random.normal(size=len(Qtemp))
+                Qlist.append(Qtemp)
             else:
-                " Appending ",T," to ", uniq_Tlist
+                print " Appending ",T," to ", uniq_Tlist
                 idx = uniq_Tlist.index(T)
-                Qlist[idx] = np.concatenate((Qlist[idx],np.loadtxt("%s/%s" % (temps[i],data))))
+                Qtemp = np.loadtxt("%s/%s" % (temps[i],data))
+                if data == "Q.dat":
+                    Qtemp += np.random.normal(size=len(Qtemp))
+                Qlist[idx] = np.concatenate((Qlist[idx],Qtemp))
+
 
         for i in range(len(Qlist)):
             # Subsample the data.
@@ -57,9 +64,10 @@ if __name__ == "__main__":
             plt.plot(bin_centers,F,lw=2,color=colors[i],label=uniq_Tlist[i])
     else:
         for i in range(len(temps)):
-            filename = "%s/%s" % (temps[i],data)
             # Subsample the data.
-            q = np.loadtxt(filename)
+            q = np.loadtxt("%s/%s" % (temps[i],data))
+            if data == "Q.dat":
+                q += np.random.normal(size=len(q))
             q_sub = q[::stride]
 
             # Calculate cumulative probability distribution of coordinate.

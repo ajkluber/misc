@@ -12,9 +12,11 @@ done
 echo "running TSprob"
 python -m misc.TSprob $1
 
-echo "removing qimap.dat"
-for x in ${dirs}; do
-    cd ${x}
-    rm qimap.dat
-    cd ../
-done
+if [ "$2" == "" ]; then
+    echo "removing qimap.dat"
+    for x in ${dirs}; do
+        cd ${x}
+        rm qimap.dat
+        cd ../
+    done
+fi

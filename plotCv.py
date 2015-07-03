@@ -42,11 +42,14 @@ if __name__ == "__main__":
         deltaT_FWHM = QvsT[rightsearch,0] - QvsT[leftsearch,0]
         Omega = ((Tf**2)/(deltaT_FWHM))*maxdQdT
             
+        open("omega","w").write("%.2f" % Omega)
         print "  Folding cooperativity: %.2f " % Omega
         error = 0
     except:
+        open("omega","w").write("%.2f" % -1)
         print "  couldn't determine folding cooperativity"
         error = 1
+
 
     files = glob.glob("free*[0-9][0-9][0-9]")
     errF = [ abs(float(x.split("free")[1]) - Tf*10)  for x in files ]

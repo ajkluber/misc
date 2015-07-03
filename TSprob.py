@@ -6,6 +6,13 @@ if __name__ == "__main__":
     temps = sys.argv[1]
     dirs = [ x.rstrip("\n") for x in open(temps,"r").readlines() ]
 
+    if os.path.exists("early_conts"):
+        early = np.loadtxt("early_conts",dtype=int)
+        late = np.loadtxt("late_conts",dtype=int)
+        calcqearly = True
+    else:
+        calcqearly = False
+
     state_labels = []
     state_bounds = []
     for line in open("state_bounds.txt","r"):
@@ -27,7 +34,12 @@ if __name__ == "__main__":
             n_frames += float(sum(state_indicator))
             contact_probability += np.sum(qimap[(state_indicator == True),:],axis=0)
 
+            if calcqearly:
+                qearly = np.sum(qimap[:,early],axis=1)
+                qlate = np.sum(qimap[:,late],axis=1)
+                np.savetxt("qearly.dat",qearly)
+                np.savetxt("qlate.dat",qlate)
+
             os.chdir("..")
         contact_probability /= n_frames
         np.savetxt("cont_prob_%s.dat" % state_label,contact_probability)
-

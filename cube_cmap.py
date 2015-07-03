@@ -551,5 +551,5 @@ def make_cmap(colors, position=None, bit=False):
     return cmap
 
 
-cubecmap = make_cmap(cube)
-cubeYFcmap = make_cmap(cubeYF)
+cubecmap = make_cmap(cube)      # With orange at the top.
+cubeYFcmap = make_cmap(cubeYF)  # Without orange at top.
