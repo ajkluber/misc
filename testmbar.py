@@ -5,6 +5,8 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
+from misc.cube_cmap import cubecmap
+
 import pymbar
 
 kb = 0.0083145
@@ -172,15 +174,14 @@ def compute_heat_capacity_melting_curve():
 
     os.chdir("..")
 
-if __name__ == "__main__":
-    #compute_heat_capacity_melting_curve()
-    
-    #bin_edges = np.arange(0,260 + 10,10) # S6
-    bin_edges = np.arange(0,260 + 10,10)
+def compute_free_energy_profiles_vs_T(coordinate,coordmin,coordmax,dcoord,tempsfile):
+    """Compute potential of mean force along a coordinate as a function of temperature"""
+
+    bin_edges = np.arange(coordmin,coordmax + dcoord,dcoord)
 
     bin_centers = 0.5*(bin_edges[1:] + bin_edges[:-1])
     
-    dirs = [ x.rstrip("\n") for x in open("long_temps","r").readlines() ]
+    dirs = [ x.rstrip("\n") for x in open(tempsfile,"r").readlines() ]
 
     unique_Tlist, sorted_dirs = get_unique_Tlist(dirs)
     wantT, sub_indices, E, u_kn, N_k = get_ukn(unique_Tlist,sorted_dirs)
@@ -191,23 +192,51 @@ if __name__ == "__main__":
 
     # Compute bin expectations at all temperatures. Free energy profile.
     print "computing expectations"
-    Q_indicators = get_binned_observables(bin_edges,"Q.dat",sorted_dirs,sub_indices)
+    A_indicators = get_binned_observables(bin_edges,coordinate,sorted_dirs,sub_indices)
 
-    Q_ind_avg, dQ_ind_avg, d2Q_ind_avg = mbar.computeMultipleExpectations(Q_indicators,u_kn[0,:])
+    coordname = coordinate.split(".")[0]
+    if not os.path.exists("pymbar_%s" % coordname):
+        os.mkdir("pymbar_%s" % coordname)
+    os.chdir("pymbar_%s" % coordname)
 
-    pmf = -np.log(Q_ind_avg)
-    pmf_err_lower = -np.log(Q_ind_avg - dQ_ind_avg)
-    pmf_err_upper = -np.log(Q_ind_avg + dQ_ind_avg)
+    Tndxs = np.argsort(wantT)
+    sortT = wantT[Tndxs]
 
-    if not os.path.exists("pymbar"):
-        os.mkdir("pymbar")
-    
-    os.chdir("pymbar")
+    np.savetxt("outputT",wantT[Tndxs])
+    np.savetxt("bin_edges",bin_edges)
+    np.savetxt("bin_centers",bin_centers)
+
     plt.figure()
-    plt.plot(bin_centers,pmf,lw=2)
-    plt.fill_between(bin_centers,pmf_err_lower,pmf_err_upper,alpha=0.2)
-    plt.savefig("pmf.png")
-    plt.savefig("pmf.pdf")
-    plt.savefig("pmf.eps")
+    # Compute pmf at each temperature.
+    for i in range(len(wantT)):
+        Tstr = "%.2f" % wantT[Tndxs[i]]
+        #x = (max(sortT) - sortT[i])/(max(sortT) - min(sortT))   # Reverse color ordering
+        x = (sortT[i] - min(sortT))/(max(sortT) - min(sortT))   # Color from blue to red
+        
+        A_ind_avg, dA_ind_avg, d2A_ind_avg = mbar.computeMultipleExpectations(A_indicators,u_kn[Tndxs[i],:])
+
+        pmf = -np.log(A_ind_avg)
+        min_pmf = min(pmf)
+        pmf -= min_pmf
+        pmf_err_lower = -np.log(A_ind_avg - dA_ind_avg) - min_pmf
+        pmf_err_upper = -np.log(A_ind_avg + dA_ind_avg) - min_pmf
+        np.savetxt("free_%s" % Tstr, np.array([pmf,pmf_err_lower,pmf_err_upper]).T)
+    
+        plt.plot(bin_centers,pmf,lw=2,label=Tstr,color=cubecmap(x))
+
+    plt.xlabel("%s" % coordname,fontsize=18)
+    plt.ylabel("F(%s)" % coordname,fontsize=18)
+    
+    plt.savefig("Fvs%s_all.png" % coordname)
+    plt.savefig("Fvs%s_all.pdf" % coordname)
+    plt.savefig("Fvs%s_all.eps" % coordname)
 
     os.chdir("..")
+if __name__ == "__main__":
+    #compute_heat_capacity_melting_curve()
+    
+    #bin_edges = np.arange(0,260 + 10,10) # S6
+    bin_edges = np.arange(0,165 + 5,5)  # SH3
+
+    #compute_free_energy_profiles_vs_T("Q.dat",0,165,5,"long_temps") 
+
