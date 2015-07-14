@@ -126,13 +126,18 @@ def get_binned_observables(bin_edges,filename,sorted_dirs,sub_indices):
     A_indicator = np.array(A_indicator)
     return A_indicator
 
-def compute_heat_capacity_melting_curve():
-    #dirs = [ x.rstrip("\n") for x in open("short_temps","r").readlines() ]
-    dirs = [ x.rstrip("\n") for x in open("long_temps","r").readlines() ]
+def compute_heat_capacity_melting_curve(long=False):
+    if long:
+        dirs = [ x.rstrip("\n") for x in open("long_temps","r").readlines() ]
+    else:
+        dirs = [ x.rstrip("\n") for x in open("short_temps","r").readlines() ]
+
+    n_contacts = len(open("%s/native_contacts.ndx" % dirs[0],skiprows=1,dtype=int).readlines())
 
     unique_Tlist, sorted_dirs = get_unique_Tlist(dirs)
-    wantT, sub_indices, E, u_kn, N_k = get_ukn(unique_Tlist,sorted_dirs)
+    wantT, sub_indices, E, u_kn, N_k = get_ukn(unique_Tlist,sorted_dirs,n_interpolate=10,n_extrapolate=0)
     beta = np.array([ 1./(kb*x) for x in wantT ])
+    Tndxs = np.argsort(wantT)
 
     print "solving mbar"
     mbar = pymbar.MBAR(u_kn,N_k)
@@ -144,28 +149,76 @@ def compute_heat_capacity_melting_curve():
     # Energy fluctuations for the heat capacity
     E_avg,dE_avg = mbar.computeExpectations(E)
     E2_avg,dE2_avg = mbar.computeExpectations(E**2)
-    Cv = kb*beta*(E2_avg - E_avg**2)
+
+    # Sort results by increasing temperature. Must do this after mbar or else
+    # it breaks.
+    wantT = wantT[Tndxs]
+    Q_avg = Q_avg[Tndxs] ; dQ_avg = dQ_avg[Tndxs]
+    E_avg = E_avg[Tndxs]   ; dE_avg = dE_avg[Tndxs]
+    E2_avg = E2_avg[Tndxs] ; dE2_avg = dE2_avg[Tndxs]
 
     if not os.path.exists("pymbar"):
         os.mkdir("pymbar")
     os.chdir("pymbar")
-    Tndxs = np.argsort(wantT)
 
-    np.savetxt("temps",wantT[Tndxs])
-    np.savetxt("cv",Cv[Tndxs])
-    np.savetxt("QvsT",Q_avg[Tndxs])
+    Cv = kb*beta*(E2_avg - E_avg**2)
+
+    dQdT = np.array([ abs((Q_avg[i + 1] - Q_avg[i])/(wantT[i + 1] - wantT[i])) for i in range(len(wantT) - 1) ])
+    Tmidpoints = np.array([ 0.5*(wantT[i + 1] + wantT[i]) for i in range(len(wantT) - 1) ])
+
+    maxindx = list(Cv).index(max(Cv))
+    Tf = wantT[maxindx]
+    print "  Folding temperature:   %.2f K" % Tf
+
+    try:
+        maxdQdT = dQdT[maxindx - 1]
+        rightsearch = maxindx - 1
+        for i in range(len(dQdT)):
+            if dQdT[rightsearch] <= (maxdQdT/2.):
+                break
+            else:
+                rightsearch += 1
+        leftsearch = maxindx - 1
+        for i in range(len(dQdT)):
+            if dQdT[leftsearch] <= (maxdQdT/2.):
+                break
+            else:
+                leftsearch -= 1
+        deltaT_FWHM = Tmidpoints[rightsearch] - Tmidpoints[leftsearch]
+        Omega = ((Tf**2)/(deltaT_FWHM))*maxdQdT
+            
+        open("omega","w").write("%.2f" % Omega)
+        print "  Folding cooperativity: %.2f " % Omega
+    except:
+        open("omega","w").write("%.2f" % -1)
+        print "  couldn't determine folding cooperativity"
+
+
+    np.savetxt("temps",wantT)
+    np.savetxt("cv",Cv)
+    np.savetxt("QvsT",Q_avg)
 
     print "plotting"
     plt.figure()
-    plt.plot(wantT[Tndxs],Cv[Tndxs],'r',lw=2)
+    plt.plot(wantT,Cv,'r',lw=2)
     plt.title("Heat Capacity")
     plt.savefig("cv.png")
     plt.savefig("cv.pdf")
     plt.savefig("cv.eps")
 
-    plt.figure()
-    plt.plot(wantT[Tndxs],Q_avg[Tndxs],'b',lw=2)
-    plt.title("Melting Curve")
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twinx()
+    ax1.plot(wantT,Q_avg,'b',lw=2)
+    ax1.set_xlabel("Temperature (K)")
+    ax1.set_ylabel("$\\left< Q \\right>(T)$")
+    ax1.set_ylim(0,n_contacts)
+    ax1.set_title("Melting Curve")
+
+    ax2.plot(Tmidpoints,dQdT,'g',lw=2)
+    #ax2.set_ylabel("$\\left|\\frac{d\\left< Q \\right>}{dT}\\right|$",rotation="horizontal",fontsize=20)
+    ax2.set_ylabel("$\\left|\\frac{d\\left< Q \\right>}{dT}\\right|$",rotation="vertical",fontsize=18)
+
     plt.savefig("QvsT.png")
     plt.savefig("QvsT.pdf")
     plt.savefig("QvsT.eps")
