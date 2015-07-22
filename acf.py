@@ -13,8 +13,8 @@ def calculate_acf(x):
     x_new = np.zeros(pow2,float)
     x_new[:len(x)] = x
 
-    FT = fft.fft(x_new)
-    acf = (fft.ifft(FT*conjugate(FT)).real)/N
+    FT = fft(x_new)
+    acf = (ifft(FT*conjugate(FT)).real)/N
     acf /= acf.max()
     acf = acf[:len(acf)/2]
     return acf

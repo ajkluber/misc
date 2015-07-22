@@ -61,49 +61,64 @@ def partition_TP(Q,stateA,stateB):
     
     if (Q[0] < stateA):
         prevState = "A"
-        indicator = [0]
+        fromState = "A"
     elif (Q[0] > stateB):
         prevState = "B"
-        indicator = [2]
+        fromState = "B"
     else:
         prevState = "TP"
-        indicator = [1]
+        fromState = "A"
 
-    TP = []
-    notTP = []
+    dwellA = []; dwellB = []
+    TP_A_B = []; TP_B_A = []
     tempTP = []
-    TPlengths = []
+    
     for i in range(1,len(Q)):
-
         if (Q[i] < stateA):
             currState = "A" 
-            temp = 0
         elif (Q[i] > stateB):
             currState = "B" 
-            temp = 2
         else:
             currState = "TP" 
-            temp = 1
-
-        indicator.append(temp)
 
         if (currState == "TP") and ((prevState == "A") or (prevState == "B")):
-            ## If you are starting a potential TP
+            # Starting a potential TP
             tempTP = [Q[i]]
             fromState = prevState
-        elif ((currState == "A") or (currState == "B")) and (prevState == "TP"):
+        elif (currState == "A") and (prevState == "TP"):
             # If you are ending a potential TP
             if currState == fromState:
-                notTP.extend(tempTP)
+                # Not reactive, just dwelling in B state.
+                if dwellA == []:
+                    dwellA = [tempTP]
+                else:
+                    dwellA[-1].extend(tempTP)
             else:
-                # Reactive trajectory!
-                #print fromState, currState, prevState, len(tempTP)     # DEBUGGING
-                TP.extend(tempTP)
-                TPlengths.append(float(len(tempTP)))
+                # Reactive trajectory into B state!
+                TP_B_A.append(tempTP)
             fromState = currState
-        elif ((currState == "A") and (prevState == "A")) or \
-             ((currState == "B") and (prevState == "B")):
-            notTP.append(Q[i])
+        elif (currState == "B") and (prevState == "TP"):
+            # If you are ending a potential TP
+            if currState == fromState:
+                # Not reactive, just dwelling in B state.
+                if dwellB == []:
+                    dwellB = [tempTP]
+                else:
+                    dwellB[-1].extend(tempTP)
+            else:
+                # Reactive trajectory into B state!
+                TP_A_B.append(tempTP)
+            fromState = currState
+        elif (currState == "A") and (prevState == "A"):
+            if dwellA == []:
+                dwellA.append([Q[i]])
+            else:
+                dwellA[-1].append(Q[i])
+        elif (currState == "B") and (prevState == "B"):
+            if dwellB == []:
+                dwellB.append([Q[i]])
+            else:
+                dwellB[-1].append(Q[i])
         elif ((currState == "TP") and (prevState == "TP")):
             tempTP.append(Q[i])
         else:
@@ -111,10 +126,7 @@ def partition_TP(Q,stateA,stateB):
 
         prevState = currState
 
-    indicator = np.array(indicator)
-    n_TPs = len(TPlengths)
-
-    return TP,notTP,TPlengths,n_TPs,indicator
+    return dwellA, dwellB, TP_A_B, TP_B_A
         
 def TP_analysis(TP,notTP,TPlengths,indicator):
     """ Analyze the transition paths from simulation
