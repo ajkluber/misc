@@ -7,14 +7,12 @@ import numpy as np
 
 def calculate_acf(x):
     from numpy.fft import fft,ifft
-
     N = float(len(x))
     pow2 = int(2**np.ceil(np.log2(len(x))))
     x_new = np.zeros(pow2,float)
     x_new[:len(x)] = x
-
     FT = fft(x_new)
-    acf = (ifft(FT*conjugate(FT)).real)/N
+    acf = (ifft(FT*np.conjugate(FT)).real)/N
     acf /= acf.max()
     acf = acf[:len(acf)/2]
     return acf

@@ -37,6 +37,6 @@ I. The Method. J. Comp. Chem. 1992, 13, 1011-1021
 
 import contacts 
 import crunch_coordinates
-import constant_temp
-import wham
+#import constant_temp
+#import wham
 import TPT

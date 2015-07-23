@@ -28,17 +28,37 @@ def count_transitions(int n_bins, int n_steps, np.ndarray[np.double_t, ndim=1] b
 @cython.wraparound(False)
 def calculate_detailed_balance_R(int n_bins, np.ndarray[np.double_t, ndim=2] Rij, np.ndarray[np.double_t, ndim=1] P):
     """Calculates the diagonal and superdiagonal of rate matrix using detailed balance"""
-    for i in range(n_bins-1):
-        Rij[i,i + 1] = Rij[i + 1,i]*P[i]/P[i + 1]
+    cdef int j
+    for j in range(n_bins - 1):
+        Rij[j,j + 1] = Rij[j + 1,j]*P[j + 1]/P[j]
 
-    for i in range(n_bins):
-        if i == 0:
-            Rij[i,i] = -Rij[i + 1,i]
-        elif i == (n_bins-1):
-            Rij[i,i] = -Rij[i - 1,i]
+    for j in range(n_bins):
+        if j == 0:
+            Rij[j,j] = -Rij[j + 1,j]
+        elif j == (n_bins - 1):
+            Rij[j,j] = -Rij[j - 1,j]
         else:
-            Rij[i,i] = -(Rij[i - 1,i] + Rij[i + 1,i])
+            Rij[j,j] = -(Rij[j - 1,j] + Rij[j + 1,j])
     return Rij
+
+#@cython.boundscheck(False)
+#@cython.wraparound(False)
+#def calculate_detailed_balance_R(int n_bins, np.ndarray[np.double_t, ndim=2] Rij, np.ndarray[np.double_t, ndim=1] P):
+#    """Constrain matrix to fulfill detailed balance. Allow all elements"""
+#    cdef int i,j
+#    cdef np.double_t row_sum = 0.
+#
+#    for j in range(n_bins - 1):
+#        for i in range(j + 1,n_bins):
+#            Rij[i,j] = Rij[j,i]*P[j]/P[i]
+#        row_sum = 0.
+#        for i in range(n_bins):
+#            if (i != j):
+#                row_sum += Rij[j,i]
+#        Rij[j,j] = -row_sum
+#    Rij[n_bins - 1,n_bins - 1] = -np.sum(Rij[n_bins - 1,:n_bins - 1])
+#
+#    return Rij
 
 
 @cython.boundscheck(False)
@@ -71,6 +91,21 @@ def calculate_logL_smoothed(int n_bins, np.double_t deltaQ, np.double_t gamma,\
         D2_sum += (D[i] - D[i + 1])**2
 
     neg_lnL = neg_lnL + 0.5*(1./(gamma**2))*D2_sum
+
+    return neg_lnL
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def calculate_logL(int n_bins, np.ndarray[np.double_t, ndim=2] Nij, np.ndarray[np.double_t, ndim=2] exp_tRij):
+
+    cdef int i,j
+    cdef np.double_t neg_lnL = 0.
+
+    # Calculate -lnL. Sum over all bins in the transition matrix
+    for i in range(n_bins):
+        for j in range(n_bins):
+            neg_lnL += Nij[i,j]*np.log(exp_tRij[i,j])
+    neg_lnL = -1*neg_lnL
 
     return neg_lnL
 
