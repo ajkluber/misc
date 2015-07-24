@@ -60,14 +60,14 @@ def calculate_detailed_balance_R(int n_bins, np.ndarray[np.double_t, ndim=2] Rij
 #
 #    return Rij
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def calculate_logL_smoothed(int n_bins, np.double_t deltaQ, np.double_t gamma,\
-                        np.ndarray[np.double_t, ndim=2] Nij, \
-                        np.ndarray[np.double_t, ndim=2] Rij, \
+def calculate_logL_smoothed(int n_bins, np.ndarray[np.double_t, ndim=2] Nij, \
                         np.ndarray[np.double_t, ndim=2] exp_tRij, \
-                        np.ndarray[np.double_t, ndim=1] P):
+                        np.ndarray[np.double_t, ndim=2] Rij, \
+                        np.ndarray[np.double_t, ndim=1] P, \
+                        np.double_t deltaQ, np.double_t gamma):
+
     cdef np.ndarray[np.double_t,
                     ndim=1,
                     negative_indices=False,
@@ -90,7 +90,31 @@ def calculate_logL_smoothed(int n_bins, np.double_t deltaQ, np.double_t gamma,\
     for i in range(n_bins - 2):
         D2_sum += (D[i] - D[i + 1])**2
 
-    neg_lnL = neg_lnL + 0.5*(1./(gamma**2))*D2_sum
+    neg_lnL = neg_lnL + (0.5/(gamma**2))*D2_sum
+
+    return neg_lnL
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def calculate_logL_smoothed_FD(int n_bins, np.ndarray[np.double_t, ndim=2] Nij, \
+                        np.ndarray[np.double_t, ndim=2] Propagator, \
+                        np.ndarray[np.double_t, ndim=1] D, np.double_t gamma):
+
+    cdef int i,j
+    cdef np.double_t neg_lnL = 0.
+    cdef np.double_t D2_sum = 0.
+
+    # Calculate -lnL. Sum over all bins in the transition matrix
+    for i in range(n_bins):
+        for j in range(n_bins):
+            neg_lnL += Nij[i,j]*np.log(Propagator[i,j])
+    neg_lnL = -1*neg_lnL
+
+    # Add the smoothening part to -lnL
+    for i in range(n_bins - 2):
+        D2_sum += (D[i] - D[i + 1])**2
+
+    neg_lnL = neg_lnL + (0.5/(gamma**2))*D2_sum
 
     return neg_lnL
 
