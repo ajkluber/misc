@@ -25,19 +25,20 @@ import matplotlib.pyplot as plt
 
 import misc.hummer as hummer
 
-def attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma):
+def attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma,step_scale):
     """Attempt a monte carlo step in D, the diffusion coefficients"""
 
     which_bin = np.random.randint(n_bins)
     D_trial = np.array(D,copy=True)
-    step = np.sign(np.random.rand() - 0.5)*D_step[which_bin]
+    #step = np.sign(np.random.rand() - 0.5)*D_step[which_bin]
+    step = np.random.normal(scale=step_scale)
     if (D_trial[which_bin] + step) <= 0:
         # Step rejected. We don't let D be negative
         pass
     else:
         D_trial[which_bin] += step
 
-        Propagator = calculate_propagator(n_bins,F,D_trial,dx,t_alpha)
+        Propagator = hummer.calculate_propagator(n_bins,F,D_trial,dx,t_alpha)
         neg_lnL_trial = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D_trial,gamma)
         
         if neg_lnL_trial < neg_lnL:
@@ -60,16 +61,17 @@ def attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_ac
 
     return neg_lnL,D
 
-def attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma):
+def attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma,step_scale):
     """Attempt a monte carlo step in Rij, the rate matrix"""
 
     which_bin = np.random.randint(n_bins)
     F_trial = np.array(F,copy=True)
-    step = np.sign(np.random.rand() - 0.5)*F_step[which_bin]
+    #step = np.sign(np.random.rand() - 0.5)*F_step[which_bin]
+    step = np.random.normal(scale=step_scale)
 
     F_trial[which_bin] += step
 
-    Propagator = calculate_propagator(n_bins,F_trial,D,dx,t_alpha)
+    Propagator = hummer.calculate_propagator(n_bins,F_trial,D,dx,t_alpha)
     neg_lnL_trial = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D,gamma)
     
     if neg_lnL_trial < neg_lnL:
@@ -113,7 +115,7 @@ def calculate_propagator(n_bins,F,D,dx,t_alpha):
 
 def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
                 bin_centers,beta_MC_schedule,beta_MC_steps,
-                n_stages,n_attempts,gamma,coord_name,no_display):
+                n_stages,n_attempts,gamma,coord_name,no_display,save=True):
 
     neg_lnL_all = np.array(neg_lnL_all)
     neg_lnL_all /= neg_lnL_all[0]
@@ -125,16 +127,17 @@ def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
     logging.info("  F_final.dat D_final.dat")
     logging.info("  F_all.npy D_all.npy")
     logging.info("  neg_lnL_all.npy")
-    with open("annealing_schedule","w") as fout:
-        fout.write("#Beta  n_steps\n")
-        for i in range(len(beta_MC_schedule)):
-            fout.write("%.5f  %d\n" % (beta_MC_schedule[i],beta_MC_steps[i]))
+    if save:
+        with open("annealing_schedule","w") as fout:
+            fout.write("#Beta  n_steps\n")
+            for i in range(len(beta_MC_schedule)):
+                fout.write("%.5f  %d\n" % (beta_MC_schedule[i],beta_MC_steps[i]))
             
-    np.savetxt("F_final.dat",F)
-    np.savetxt("D_final.dat",D)
-    np.save("F_all.npy",F_all)
-    np.save("D_all.npy",D_all)
-    np.save("neg_lnL_all.npy",neg_lnL_all)
+        np.savetxt("F_final.dat",F)
+        np.savetxt("D_final.dat",D)
+        np.save("F_all.npy",F_all)
+        np.save("D_all.npy",D_all)
+        np.save("neg_lnL_all.npy",neg_lnL_all)
 
     logging.info("Plotting: (everything as png & pdf)")
     logging.info("  lnL")
@@ -150,8 +153,9 @@ def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
                 0.9*(max(neg_lnL_all) - min(neg_lnL_all)) + min(neg_lnL_all),
                 "$\\beta=%.1e$" % beta_MC_schedule[i],fontsize=16)
     plt.title("Negative log likelihood",fontsize=16)
-    plt.savefig("lnL.png")
-    plt.savefig("lnL.pdf")
+    if save:
+        plt.savefig("lnL.png")
+        plt.savefig("lnL.pdf")
 
     plt.figure()
     plt.plot(D_all)
@@ -161,8 +165,9 @@ def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
         plt.axvline(x=sum_steps,color='k')
     plt.xlabel("MC steps",fontsize=16)
     plt.title("Diffusion coefficient $\\gamma=%.2e$" % gamma,fontsize=16)
-    plt.savefig("D_all.png")
-    plt.savefig("D_all.pdf")
+    if save:
+        plt.savefig("D_all.png")
+        plt.savefig("D_all.pdf")
 
     plt.figure()
     plt.plot(F_all)
@@ -172,24 +177,27 @@ def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
         plt.axvline(x=sum_steps,color='k')
     plt.xlabel("MC steps",fontsize=16)
     plt.title("Free energy $\\gamma=%.2e$" % gamma,fontsize=16)
-    plt.savefig("F_all.png")
-    plt.savefig("F_all.pdf")
+    if save:
+        plt.savefig("F_all.png")
+        plt.savefig("F_all.pdf")
 
     plt.figure()
     plt.plot(bin_centers,F)
     plt.xlabel("%s" % coord_name,fontsize=16)
     plt.ylabel("F(%s) (k$_B$T)" % coord_name,fontsize=16)
     plt.title("Final Free energy $\\gamma=%.2e$" % gamma,fontsize=16)
-    plt.savefig("F_final.png")
-    plt.savefig("F_final.pdf")
+    if save:
+        plt.savefig("F_final.png")
+        plt.savefig("F_final.pdf")
 
     plt.figure()
     plt.plot(bin_centers,D)
     plt.xlabel("%s" % coord_name,fontsize=16)
     plt.ylabel("D(%s)" % coord_name,fontsize=16)
     plt.title("Final Diffusion coefficient $\\gamma=%.2e$" % gamma,fontsize=16)
-    plt.savefig("D_final.png")
-    plt.savefig("D_final.pdf")
+    if save:
+        plt.savefig("D_final.png")
+        plt.savefig("D_final.pdf")
 
     if not no_display:
         plt.show()
@@ -218,14 +226,18 @@ if __name__ == "__main__":
 
     parser.add_argument("--dt", 
                         type=float, 
-                        default=0.5, 
-                        help="Timestep units per frame. Default: 0.5ps per frame.")
+                        default=1, 
+                        help="Timestep units per frame. Default: 1ps per frame.")
 
     parser.add_argument("--adaptive_stepsize", 
                         action="store_true",
                         help="Adaptively scale monte carlo stepsize based on acceptance ratio.")
 
     parser.add_argument("--no_display", 
+                        action="store_true",
+                        help="Plot things without display available (e.g. on compute node).")
+
+    parser.add_argument("--debug", 
                         action="store_true",
                         help="Plot things without display available (e.g. on compute node).")
 
@@ -240,6 +252,7 @@ if __name__ == "__main__":
     n_bins = args.n_bins
     no_display = args.no_display
     adaptive_stepsize = args.adaptive_stepsize
+    debug = args.debug
 
     t_alpha = lag_frames*dt
     n_attempts = n_bins*2
@@ -302,17 +315,18 @@ if __name__ == "__main__":
     ########################################################################
     logging.info("Initializing F, D, and log-likelihood")
     F = np.ones(n_bins)
-    D = 0.01*np.ones(n_bins)
+    #D = 0.01*np.ones(n_bins)
+    D = np.ones(n_bins)
 
-    F_step = 0.1*np.ones(n_bins)
+    F_step = 0.01*np.ones(n_bins)
     F_attempts = np.zeros(n_bins)
     F_accepts = np.zeros(n_bins)
 
-    D_step = 0.001*np.ones(n_bins,float)
+    D_step = 0.01*np.ones(n_bins,float)
     D_attempts = np.zeros(n_bins,float)
     D_accepts = np.zeros(n_bins,float)
 
-    Propagator = calculate_propagator(n_bins,F,D,dx,t_alpha)
+    Propagator = hummer.calculate_propagator(n_bins,F,D,dx,t_alpha)
     neg_lnL = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D,gamma)
 
     neg_lnL_all = [neg_lnL]
@@ -322,25 +336,35 @@ if __name__ == "__main__":
     ########################################################################
     # Perform Metropolis-Hastings monte carlo 
     ########################################################################
-    beta_MC_schedule = [0.5,1.]          
-    beta_MC_steps = [50,100]
+    beta_MC_schedule = [2.,3.]          
+    #beta_MC_schedule = [0.01,0.02]          
+    beta_MC_steps = [200,100]
+    D_step_scale = [0.2,0.01]
+    F_step_scale = [0.01,0.005]
     n_stages = len(beta_MC_schedule)    
     logging.info("Starting Monte Carlo optimization of Likelihood L")
     for b in range(n_stages):
         # Annealing stage for MC acceptance ratio
+        F_scale = F_step_scale[b]
+        D_scale = D_step_scale[b]
         beta_MC = float(beta_MC_schedule[b])
         n_steps = beta_MC_steps[b]
         logging.info("Stage %3d of %3d: Beta = %.4e  Total steps = %d" % (b + 1,n_stages,beta_MC,n_steps*n_attempts))
         logging.info("  Step #      -log(L)")
+        if debug:
+            print "Stage %3d of %3d: Beta = %.4e  Total steps = %d" % (b + 1,n_stages,beta_MC,n_steps*n_attempts)
+            print "  Step #      -log(L)"
         for n in range(n_steps):
             for i in range(n_attempts):
-                neg_lnL,D = attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma)
-                neg_lnL,F = attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma)
+                neg_lnL,D = hummer.attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma,D_scale)
+                neg_lnL,F = hummer.attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma,F_scale)
                 neg_lnL_all.append(neg_lnL)
                 D_all.append(D)
                 F_all.append(F)
 
             logging.info("  %-10d  %-15.4f" % (n*n_attempts,neg_lnL))
+            if debug:
+                print "  %-10d  %-15.4f" % (n*n_attempts,neg_lnL)
 
             if adaptive_stepsize: 
                 # Adaptively scale step size to match acceptance
@@ -349,14 +373,14 @@ if __name__ == "__main__":
                     ratio_F = F_accepts/F_attempts
                     F_step[ratio_F <= 0.5] *= 0.95
                     F_step[ratio_F > 0.5] *= 1.05
-                if np.all(R_attempts):
+                if np.all(D_attempts):
                     ratio_D = D_accepts/D_attempts
                     D_step[ratio_D <= 0.5] *= 0.95
                     D_step[ratio_D > 0.5] *= 1.05
     
     plot_and_save(neg_lnL_all,F_all,D_all,F,D,
                 bin_centers,beta_MC_schedule,beta_MC_steps,
-                n_stages,n_attempts,gamma,coord_name,no_display)
+                n_stages,n_attempts,gamma,coord_name,no_display,save=False)
 
     logging.info("Done")
     os.chdir("../../..")
