@@ -1,6 +1,9 @@
 import os
+import argparse
+import logging
 import numpy as np
 from scipy import linalg
+
 import matplotlib 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -44,8 +47,7 @@ if __name__ == "__main__":
     lagtimes = [2,5,10,20,50,75,100,150,200,250,300,400]
     n_lags = len(lagtimes)
 
-    run_directory = "%s_diff_model/lag_frames_%d_bins_%d" \
-                  % (coord_name,lag_frames,n_bins,gamma)
+    run_directory = "%s_diff_model" % coord_name
     logfilename = "%s/implied_timescale.log" % run_directory
 
     if not os.path.exists(run_directory):
@@ -63,13 +65,17 @@ if __name__ == "__main__":
         xfull = np.loadtxt("%s" % coord_file)
         Nx,bins = np.histogram(xfull,bins=n_bins)
 
-    os.chdir("%s_diff_model/lag_frames_%d_bins_%d" % (coord_name,lag_frames,n_bins))
+    os.chdir("%s_diff_model" % coord_name)
     
     all_vals = np.zeros((n_lags,n_bins))
     for tau in range(n_lags):
         lag_frames = lagtimes[tau]
         x = xfull[::lag_frames]
         n_frames = len(x)
+
+        if not os.path.exists("lag_frames_%d_bins_%d" % (lag_frames,n_bins)):
+            os.mkdir("lag_frames_%d_bins_%d" % (lag_frames,n_bins))
+        os.chdir("lag_frames_%d_bins_%d" % (lag_frames,n_bins))
 
         print "Estimating diffusion model using: lag_frames = %d  n_bins = %d " % (lag_frames,n_bins)
         if os.path.exists("Nij.npy"):
@@ -107,4 +113,12 @@ if __name__ == "__main__":
         #Rij = ((1./float(lag_frames))*linalg.logm(Tij_approx)).real
         #np.save("Rij_approx.npy",Rij)
 
-    os.chdir("../..")
+        os.chdir("..")
+    os.chdir("..")
+
+    plt.plot(np.array(lagtimes),abs(all_vals))
+    plt.xlabel("Lagtime (frames)")
+    plt.ylabel("Eigenvalues")
+    plt.title("Transition matrix eigenvalue spectra")
+    if not no_display:
+        plt.show()

@@ -292,7 +292,7 @@ if __name__ == "__main__":
     ########################################################################
     beta_MC_schedule = [40.,60.]
     #beta_MC_schedule = [0.01,0.02]          
-    beta_MC_steps = [200,400]
+    beta_MC_steps = [200,200]
     D_step_scale = [0.2,0.1]
     F_step_scale = [0.1,0.01]
     n_stages = len(beta_MC_schedule)    

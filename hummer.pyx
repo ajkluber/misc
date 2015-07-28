@@ -6,9 +6,8 @@ cimport numpy as np
 @cython.wraparound(False)
 def count_transitions(int n_bins, int n_steps, np.ndarray[np.double_t, ndim=1] bins, np.ndarray[np.double_t, ndim=1] Q):
     """ Count the number of transitions between bins """
-    cdef np.ndarray[np.double_t,
-                    ndim=2,
-                    negative_indices=False,
+
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
                     mode='c'] N = np.zeros((n_bins,n_bins))
 
     cdef int i,j,t
@@ -29,6 +28,7 @@ def count_transitions(int n_bins, int n_steps, np.ndarray[np.double_t, ndim=1] b
 def calculate_detailed_balance_R(int n_bins, np.ndarray[np.double_t, ndim=2] Rij, np.ndarray[np.double_t, ndim=1] P):
     """Calculates the diagonal and superdiagonal of rate matrix using detailed balance"""
     cdef int j
+
     for j in range(n_bins - 1):
         Rij[j,j + 1] = Rij[j + 1,j]*P[j + 1]/P[j]
 
@@ -67,10 +67,9 @@ def calculate_logL_smoothed(int n_bins, np.ndarray[np.double_t, ndim=2] Nij, \
                         np.ndarray[np.double_t, ndim=2] Rij, \
                         np.ndarray[np.double_t, ndim=1] P, \
                         np.double_t deltaQ, np.double_t gamma):
+    """OLD function. NOT USED """
 
-    cdef np.ndarray[np.double_t,
-                    ndim=1,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=1, negative_indices=False,
                     mode='c'] D = np.zeros(n_bins-1)
 
     cdef int i,j
@@ -144,14 +143,16 @@ def calculate_propagator(int n_bins, np.ndarray[np.double_t, ndim=1] F, np.ndarr
                             np.double_t dx, np.double_t t_alpha):
     """Calculate propagator using analytical expression from Bicout and Szabo"""
 
-    cdef np.ndarray[np.double_t,
-                    ndim=2,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
                     mode='c'] M = np.zeros((n_bins,n_bins))
-
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
+                    mode='c'] V = np.zeros((n_bins,n_bins))
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
+                    mode='c'] rootPeq_ratio = np.zeros((n_bins,n_bins))
+    cdef np.ndarray[np.double_t,ndim=1,negative_indices=False,
+                    mode='c'] S = np.zeros(n_bins)
     cdef int i
 
-    #M = np.zeros((n_bins,n_bins))
     for i in range(1,n_bins - 1):
         M[i,i] = -(omega(F,D,dx,i,i + 1) + omega(F,D,dx,i,i - 1))
         M[i,i + 1] = np.sqrt(omega(F,D,dx,i,i + 1)*omega(F,D,dx,i + 1,i))
@@ -162,8 +163,11 @@ def calculate_propagator(int n_bins, np.ndarray[np.double_t, ndim=1] F, np.ndarr
     M[0,0] = -omega(F,D,dx,0,1)
     M[n_bins - 1,n_bins - 1] = -omega(F,D,dx,n_bins - 1,n_bins - 2)
 
+    # Need to change coordinates back from the symmetrized coordinates
+    # by multiplying rows by sqrt(P_eq(i)/P_eq(j)) 
     S,V = np.linalg.eig(M)
-    Propagator = abs(np.dot(V,np.dot(np.diag(np.exp(S.real*t_alpha)),V.T)))
+    rootPeq_ratio = np.outer(np.exp(-0.5*F),np.exp(0.5*F))
+    Propagator = rootPeq_ratio*abs(np.dot(V,np.dot(np.diag(np.exp(S.real*t_alpha)),V.T)))
     return Propagator
 
 @cython.boundscheck(False)
@@ -182,16 +186,10 @@ def attempt_step_D(np.double_t beta_MC, np.double_t neg_lnL,
                 np.double_t dx, np.double_t gamma, np.double_t step_scale):
     """Attempt a monte carlo step in D, the diffusion coefficients"""
 
-    cdef np.ndarray[np.double_t,
-                    ndim=1,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=1, negative_indices=False,
                     mode='c'] D_trial = np.zeros(n_bins)
-
-    cdef np.ndarray[np.double_t,
-                    ndim=2,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
                     mode='c'] Propagator= np.zeros((n_bins,n_bins))
-
     cdef np.double_t step, neg_lnL_trial, delta_lnL
     cdef int which_bin
 
@@ -238,14 +236,10 @@ def attempt_step_F(np.double_t beta_MC, np.double_t neg_lnL,
                 np.double_t dx, np.double_t gamma, np.double_t step_scale):
     """Attempt a monte carlo step in F, the diffusion coefficients"""
 
-    cdef np.ndarray[np.double_t,
-                    ndim=1,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=1, negative_indices=False,
                     mode='c'] F_trial = np.zeros(n_bins)
 
-    cdef np.ndarray[np.double_t,
-                    ndim=2,
-                    negative_indices=False,
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
                     mode='c'] Propagator= np.zeros((n_bins,n_bins))
 
     cdef np.double_t step, neg_lnL_trial, delta_lnL
