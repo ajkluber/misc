@@ -35,7 +35,7 @@ if __name__ == "__main__":
                         help="Nonnative variance.")
     parser.add_argument("--replicas",
                         type=int,
-                        required=,
+                        required=True,
                         nargs="+",
                         help="Nonnative variance.")
     parser.add_argument("--n_nodes",
