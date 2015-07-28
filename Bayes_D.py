@@ -16,6 +16,7 @@ P(j, t + dt| i, t) = prob. of hopping from bin i to bin j in time dt
 import logging
 import argparse
 import os
+import time
 import numpy as np
 from scipy import linalg
 
@@ -25,114 +26,41 @@ import matplotlib.pyplot as plt
 
 import misc.hummer as hummer
 
-def attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma,step_scale):
-    """Attempt a monte carlo step in D, the diffusion coefficients"""
-
-    which_bin = np.random.randint(n_bins)
-    D_trial = np.array(D,copy=True)
-    #step = np.sign(np.random.rand() - 0.5)*D_step[which_bin]
-    step = np.random.normal(scale=step_scale)
-    if (D_trial[which_bin] + step) <= 0:
-        # Step rejected. We don't let D be negative
-        pass
-    else:
-        D_trial[which_bin] += step
-
-        Propagator = hummer.calculate_propagator(n_bins,F,D_trial,dx,t_alpha)
-        neg_lnL_trial = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D_trial,gamma)
-        
-        if neg_lnL_trial < neg_lnL:
-            # Accept the move if it increases the log Likelihood function.
-            D = D_trial
-            neg_lnL = neg_lnL_trial
-            D_accepts[which_bin] += 1
-        else:
-            delta_lnL = neg_lnL_trial - neg_lnL
-            if np.random.rand() <= np.exp(-beta_MC*delta_lnL):
-                # Step accepted
-                D = D_trial
-                neg_lnL = neg_lnL_trial
-                D_accepts[which_bin] += 1
-            else:
-                # Step rejected
-                pass
-
-    D_attempts[which_bin] += 1
-
-    return neg_lnL,D
-
-def attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma,step_scale):
-    """Attempt a monte carlo step in Rij, the rate matrix"""
-
-    which_bin = np.random.randint(n_bins)
-    F_trial = np.array(F,copy=True)
-    #step = np.sign(np.random.rand() - 0.5)*F_step[which_bin]
-    step = np.random.normal(scale=step_scale)
-
-    F_trial[which_bin] += step
-
-    Propagator = hummer.calculate_propagator(n_bins,F_trial,D,dx,t_alpha)
-    neg_lnL_trial = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D,gamma)
-    
-    if neg_lnL_trial < neg_lnL:
-        # Accept the move if it increases the log Likelihood function.
-        F = F_trial
-        neg_lnL = neg_lnL_trial
-        F_accepts[which_bin] += 1
-    else:
-        delta_lnL = neg_lnL_trial - neg_lnL
-        if np.random.rand() <= np.exp(-beta_MC*delta_lnL):
-            # Step accepted
-            F = F_trial
-            neg_lnL = neg_lnL_trial
-            F_accepts[which_bin] += 1
-        else:
-            # Step rejected
-            pass
-
-    F_attempts[which_bin] += 1
-
-    return neg_lnL,F
-
-def calculate_propagator(n_bins,F,D,dx,t_alpha):
-    """Calculate propagator analytically"""
-    omega = lambda i,j: 0.5*((D[i] + D[j])/(dx**2))*np.exp(-0.5*(F[j] - F[i]))
-
-    M = np.zeros((n_bins,n_bins))  
-    for i in range(1,n_bins - 1):
-        M[i,i] = -(omega(i,i + 1) + omega(i,i - 1))
-        M[i,i + 1] = np.sqrt(omega(i,i + 1)*omega(i + 1,i))
-        M[i + 1,i] = np.sqrt(omega(i + 1,i)*omega(i,i + 1))
-        M[i,i - 1] = np.sqrt(omega(i,i - 1)*omega(i - 1,i))
-        M[i - 1,i] = np.sqrt(omega(i - 1,i)*omega(i,i - 1))
-                                 
-    M[0,0] = -omega(0,1)
-    M[n_bins - 1,n_bins - 1] = -omega(n_bins - 1,n_bins - 2)
-
-    S,V = np.linalg.eig(M)
-    Propagator = abs(np.dot(V,np.dot(np.diag(np.exp(S.real*t_alpha)),V.T)))
-    return Propagator
-
 def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
                 bin_centers,beta_MC_schedule,beta_MC_steps,
-                n_stages,n_attempts,gamma,coord_name,no_display,save=True):
+                n_stages,n_attempts,gamma,coord_name,no_display,
+                Propagator,Nij,save=True):
 
     neg_lnL_all = np.array(neg_lnL_all)
     neg_lnL_all /= neg_lnL_all[0]
     D_all = np.array(D_all)
     F_all = np.array(F_all)
 
+    # Empirical transfer matrix 
+    Nij_col_sum = np.sum(Nij,axis=1)
+    Tij = np.zeros((n_bins,n_bins))
+    for i in range(n_bins):
+        if Nij_col_sum[i] == 0:
+            pass
+        else:
+            Tij[i,:] = Nij[i,:]/Nij_col_sum[i]
+
+
     logging.info("Saving:")
     logging.info("  annealing_schedule")
     logging.info("  F_final.dat D_final.dat")
     logging.info("  F_all.npy D_all.npy")
     logging.info("  neg_lnL_all.npy")
+    logging.info("  Propagator.npy")
+    logging.info("  Tij.npy")
     if save:
         with open("annealing_schedule","w") as fout:
             fout.write("#Beta  n_steps\n")
             for i in range(len(beta_MC_schedule)):
                 fout.write("%.5f  %d\n" % (beta_MC_schedule[i],beta_MC_steps[i]))
             
+        np.save("Tij.npy",Tij)
+        np.save("Propagator.npy",Propagator)
         np.savetxt("F_final.dat",F)
         np.savetxt("D_final.dat",D)
         np.save("F_all.npy",F_all)
@@ -143,6 +71,27 @@ def plot_and_save(neg_lnL_all,F_all,D_all,F,D,
     logging.info("  lnL")
     logging.info("  F_final  F_all")
     logging.info("  D_final  D_all")
+
+    plt.figure()
+    plt.pcolormesh(Tij)
+    plt.colorbar()
+    plt.xlabel("bin j")
+    plt.ylabel("bin i")
+    plt.title("Empirical Propagator $T_{ij}$")
+    if save:
+        plt.savefig("Tij.png")
+        plt.savefig("Tij.pdf")
+
+    plt.figure()
+    plt.pcolormesh(Propagator)
+    plt.colorbar()
+    plt.xlabel("bin j")
+    plt.ylabel("bin i")
+    plt.title("Diffusive Model Propagator $P(j,dt|i,0)$")
+    if save:
+        plt.savefig("Propagator.png")
+        plt.savefig("Propagator.pdf")
+
     plt.figure()
     plt.plot(neg_lnL_all)
     sum_steps = 0
@@ -261,6 +210,9 @@ if __name__ == "__main__":
                   % (coord_name,lag_frames,n_bins,gamma)
     logfilename = "%s/Bayes_FD.log" % run_directory
 
+    if not os.path.exists(coord_file):
+        raise IOError("Input reaction coordinate file %s does not exist!" % coord_file)
+
     if not os.path.exists(run_directory):
         os.makedirs(run_directory)
 
@@ -310,6 +262,8 @@ if __name__ == "__main__":
 
     os.chdir("gamma_%.2e" % gamma)
 
+    #n_bins,dx,t_alpha,Nij,gamma
+
     ########################################################################
     # Initialize F, D, lnL
     ########################################################################
@@ -336,13 +290,15 @@ if __name__ == "__main__":
     ########################################################################
     # Perform Metropolis-Hastings monte carlo 
     ########################################################################
-    beta_MC_schedule = [2.,3.]          
+    beta_MC_schedule = [40.,60.]
     #beta_MC_schedule = [0.01,0.02]          
-    beta_MC_steps = [200,100]
-    D_step_scale = [0.2,0.01]
-    F_step_scale = [0.01,0.005]
+    beta_MC_steps = [200,400]
+    D_step_scale = [0.2,0.1]
+    F_step_scale = [0.1,0.01]
     n_stages = len(beta_MC_schedule)    
     logging.info("Starting Monte Carlo optimization of Likelihood L")
+    starttime = time.time()
+    total_steps = 0
     for b in range(n_stages):
         # Annealing stage for MC acceptance ratio
         F_scale = F_step_scale[b]
@@ -377,10 +333,16 @@ if __name__ == "__main__":
                     ratio_D = D_accepts/D_attempts
                     D_step[ratio_D <= 0.5] *= 0.95
                     D_step[ratio_D > 0.5] *= 1.05
+        total_steps += n_steps*n_attempts
+    runsecs = time.time() - starttime
+    if debug:
+        print "Took %.2f min for %d steps, %.2e steps per sec" % (runsecs/60.,total_steps,total_steps/runsecs)
     
+    Propagator = hummer.calculate_propagator(n_bins,F,D,dx,t_alpha)
     plot_and_save(neg_lnL_all,F_all,D_all,F,D,
                 bin_centers,beta_MC_schedule,beta_MC_steps,
-                n_stages,n_attempts,gamma,coord_name,no_display,save=False)
+                n_stages,n_attempts,gamma,coord_name,no_display,
+                Propagator,Nij)
 
     logging.info("Done")
     os.chdir("../../..")
