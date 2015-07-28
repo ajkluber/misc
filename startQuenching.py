@@ -7,7 +7,7 @@ import subprocess as sb
 import model_builder as mdb
 import project_tools as pjt
 
-def get_slurm(jobname,nodes,ppn,time,command,queue="commons",email=False):
+def get_slurm(jobname,nodes,ppn,time,command,queue="commons"):
     slurm_string = "#!/bin/bash \n"
     slurm_string +="#SBATCH --job-name=%s\n" % jobname
     slurm_string +="#SBATCH --partition=%s\n" % queue
@@ -15,9 +15,6 @@ def get_slurm(jobname,nodes,ppn,time,command,queue="commons",email=False):
     slurm_string +="#SBATCH --ntasks-per-node=%d\n" % ppn
     slurm_string +="#SBATCH --time=%s\n" % time
     slurm_string +="#SBATCH --exclusive\n"
-    if email:
-        slurm_string +="#SBATCH --mail-user=alexkluber@gmail.com\n"
-        slurm_string +="#SBATCH --mail-type=ALL\n" 
     slurm_string +="#SBATCH --export=ALL\n\n"
     slurm_string +="cd $SLURM_SUBMIT_DIR\n"
     slurm_string +="%s\n" % command
@@ -99,7 +96,7 @@ if __name__ == "__main__":
                 jobname = "%s_qnch_%d" % (name,j)
                 with open("quench_parallel_%d.slurm" % j,"w") as fout:
                     # Write job script
-                    slurmjob = get_slurm(jobname,nodes,ppn,time,command,queue="commons",email=True)
+                    slurmjob = get_slurm(jobname,nodes,ppn,time,command,queue="commons")
                     fout.write(slurmjob)
 
                 with open("sbatch%d.out" % j,"w") as fout:
