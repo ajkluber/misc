@@ -63,7 +63,7 @@ if __name__ == "__main__":
     nonnative_variance = args.nonnative_variance
     rank_offset = args.rank_offset
     n_jobs = args.n_jobs
-    nodes = args.n_nodes
+    n_nodes = args.n_nodes
     ppn = args.ppn
     n_processors_per_job = nodes*ppn
     time = args.walltime
@@ -95,7 +95,7 @@ if __name__ == "__main__":
                 jobname = "%s_qnch_%d" % (name,j)
                 with open("quench_parallel_%d.slurm" % j,"w") as fout:
                     # Write job script
-                    slurmjob = get_slurm(jobname,nodes,ppn,time,command,queue="commons")
+                    slurmjob = get_slurm(jobname,n_nodes,ppn,time,command,queue="commons")
                     fout.write(slurmjob)
 
                 with open("sbatch%d.out" % j,"w") as fout:
