@@ -68,8 +68,11 @@ if __name__ == "__main__":
     n_processors_per_job = n_nodes*ppn
     time = args.walltime
 
-    #replicas = [1]
-    
+    if args.replicas is not None:
+        replicas = [ int(x) for x in args.replicas ]
+    else:
+        replicas = range(1,11)
+
     for n in range(len(nonnative_variance)):
         for rep in replicas:
             #shutil.copy("sim_quenching.py","random_b2_%s/replica_%d/" % (nonnative_variance[n],rep))
