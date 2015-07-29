@@ -25,7 +25,7 @@ EOF"""
 
 def start_quenching_run(model,Tlist,pslist):
 
-    nsteps = 1000000
+    nsteps = 600000
     name = model.name
 
     nvt = pjt.simulation.mdp.simulated_annealing(Tlist,pslist,str(nsteps))
