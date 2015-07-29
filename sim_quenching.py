@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     name = args.name
-    rank_offset = args.rank_offset + 1
+    rank_offset = args.rank_offset
 
     comm = MPI.COMM_WORLD   # MPI environment
     size = comm.Get_size()  # number of threads

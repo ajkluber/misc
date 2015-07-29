@@ -65,10 +65,10 @@ if __name__ == "__main__":
     n_jobs = args.n_jobs
     n_nodes = args.n_nodes
     ppn = args.ppn
-    n_processors_per_job = nodes*ppn
+    n_processors_per_job = n_nodes*ppn
     time = args.walltime
 
-    replicas = [1]
+    #replicas = [1]
     
     for n in range(len(nonnative_variance)):
         for rep in replicas:
