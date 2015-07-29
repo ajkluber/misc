@@ -107,11 +107,11 @@ def calculate_logL_smoothed_FD(int n_bins, np.ndarray[np.double_t, ndim=2] Nij, 
     for i in range(n_bins):
         for j in range(n_bins):
             # What about when Propagator[i,j] == 0? -> get nan, hmm.
-            neg_lnL += Nij[i,j]*np.log(Propagator[i,j])
-            #if Propagator[i,j] == 0:
-            #    neg_lnL += Nij[i,j]*np.log(0.01)
-            #else:
-            #    neg_lnL += Nij[i,j]*np.log(Propagator[i,j])
+            #neg_lnL += Nij[i,j]*np.log(Propagator[i,j])
+            if Propagator[i,j] == 0:
+                neg_lnL += Nij[i,j]*np.log(0.000001)
+            else:
+                neg_lnL += Nij[i,j]*np.log(Propagator[i,j])
     neg_lnL = -1*neg_lnL
 
     # Add the smoothening part to -lnL
@@ -175,6 +175,43 @@ def calculate_propagator(int n_bins, np.ndarray[np.double_t, ndim=1] F, np.ndarr
 def omega(np.ndarray[np.double_t, ndim=1] F, np.ndarray[np.double_t, ndim=1] D, np.double_t dx, int i, int j):
     """Calculate matrix element of symmetrized rate matrix"""
     return 0.5*((D[i] + D[j])/(dx**2))*np.exp(-0.5*(F[j] - F[i]))
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def attempt_scaling_D(np.double_t beta_MC, np.double_t neg_lnL, np.double_t t_alpha,
+                np.ndarray[np.double_t, ndim=1] D, np.ndarray[np.double_t, ndim=1] F,
+                np.ndarray[np.double_t, ndim=2] Nij, int n_bins,
+                np.double_t dx, np.double_t gamma):
+    """Attempt a monte carlo scaling of D, the diffusion coefficients"""
+
+    cdef np.ndarray[np.double_t, ndim=1, negative_indices=False,
+                    mode='c'] D_trial = np.zeros(n_bins)
+    cdef np.ndarray[np.double_t, ndim=2, negative_indices=False,
+                    mode='c'] Propagator= np.zeros((n_bins,n_bins))
+    cdef np.double_t scaling_constant, neg_lnL_trial, delta_lnL
+
+    # Scale all components of D 
+    scaling_constant = (1. + np.sign(np.random.rand() - 0.5)*(0.01 + np.random.normal(scale=0.05)))
+    D_trial = np.array(D,copy=True)*scaling_constant
+
+    Propagator = calculate_propagator(n_bins,F,D_trial,dx,t_alpha)
+    neg_lnL_trial = calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D_trial,gamma)
+
+    if neg_lnL_trial < neg_lnL:
+        # Accept the move if it increases the log Likelihood function.
+        D = D_trial
+        neg_lnL = neg_lnL_trial
+    else:
+        delta_lnL = neg_lnL_trial - neg_lnL
+        if np.random.rand() <= np.exp(-beta_MC*delta_lnL):
+            # Step accepted
+            D = D_trial
+            neg_lnL = neg_lnL_trial
+        else:
+            # Step rejected
+            pass
+
+    return neg_lnL,D
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

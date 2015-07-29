@@ -178,9 +178,9 @@ if __name__ == "__main__":
                         default=1, 
                         help="Timestep units per frame. Default: 1ps per frame.")
 
-    parser.add_argument("--adaptive_stepsize", 
-                        action="store_true",
-                        help="Adaptively scale monte carlo stepsize based on acceptance ratio.")
+    #parser.add_argument("--adaptive_stepsize", 
+    #                    action="store_true",
+    #                    help="Adaptively scale monte carlo stepsize based on acceptance ratio.")
 
     parser.add_argument("--no_display", 
                         action="store_true",
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     gamma = args.gamma
     n_bins = args.n_bins
     no_display = args.no_display
-    adaptive_stepsize = args.adaptive_stepsize
+    #adaptive_stepsize = args.adaptive_stepsize
     debug = args.debug
 
     t_alpha = lag_frames*dt
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     logging.info(" n_bins     = %5d" % n_bins)
     logging.info(" gamma      = %5.2e" % gamma)
     logging.info(" dt         = %5.2e" % dt)
-    logging.info(" adaptive   = %s" % str(adaptive_stepsize))
+    #logging.info(" adaptive   = %s" % str(adaptive_stepsize))
     logging.info(" no-display = %s" % str(no_display))
 
 
@@ -269,7 +269,6 @@ if __name__ == "__main__":
     ########################################################################
     logging.info("Initializing F, D, and log-likelihood")
     F = np.ones(n_bins)
-    #D = 0.01*np.ones(n_bins)
     D = np.ones(n_bins)
 
     F_step = 0.01*np.ones(n_bins)
@@ -284,6 +283,7 @@ if __name__ == "__main__":
     neg_lnL = hummer.calculate_logL_smoothed_FD(n_bins,Nij,Propagator,D,gamma)
 
     neg_lnL_all = [neg_lnL]
+    neg_lnL_all = [neg_lnL]
     D_all = [D]
     F_all = [F]
 
@@ -291,8 +291,7 @@ if __name__ == "__main__":
     # Perform Metropolis-Hastings monte carlo 
     ########################################################################
     beta_MC_schedule = [40.,60.]
-    #beta_MC_schedule = [0.01,0.02]          
-    beta_MC_steps = [200,200]
+    beta_MC_steps = [200,100]
     D_step_scale = [0.2,0.1]
     F_step_scale = [0.1,0.01]
     n_stages = len(beta_MC_schedule)    
@@ -312,6 +311,7 @@ if __name__ == "__main__":
             print "  Step #      -log(L)"
         for n in range(n_steps):
             for i in range(n_attempts):
+                neg_lnL,D = hummer.attempt_scaling_D(beta_MC,neg_lnL,t_alpha,D,F,Nij,n_bins,dx,gamma)
                 neg_lnL,D = hummer.attempt_step_D(beta_MC,neg_lnL,D,F,D_step,t_alpha,Nij,n_bins,D_attempts,D_accepts,dx,gamma,D_scale)
                 neg_lnL,F = hummer.attempt_step_F(beta_MC,neg_lnL,D,F,F_step,t_alpha,Nij,n_bins,F_attempts,F_accepts,dx,gamma,F_scale)
                 neg_lnL_all.append(neg_lnL)
@@ -322,17 +322,17 @@ if __name__ == "__main__":
             if debug:
                 print "  %-10d  %-15.4f" % (n*n_attempts,neg_lnL)
 
-            if adaptive_stepsize: 
-                # Adaptively scale step size to match acceptance
-                # ratio of 0.5 in all bins. Use with caution.
-                if np.all(F_attempts):
-                    ratio_F = F_accepts/F_attempts
-                    F_step[ratio_F <= 0.5] *= 0.95
-                    F_step[ratio_F > 0.5] *= 1.05
-                if np.all(D_attempts):
-                    ratio_D = D_accepts/D_attempts
-                    D_step[ratio_D <= 0.5] *= 0.95
-                    D_step[ratio_D > 0.5] *= 1.05
+            #if adaptive_stepsize: 
+            #    # Adaptively scale step size to match acceptance
+            #    # ratio of 0.5 in all bins. DEPRECATED
+            #    if np.all(F_attempts):
+            #        ratio_F = F_accepts/F_attempts
+            #        F_step[ratio_F <= 0.5] *= 0.95
+            #        F_step[ratio_F > 0.5] *= 1.05
+            #    if np.all(D_attempts):
+            #        ratio_D = D_accepts/D_attempts
+            #        D_step[ratio_D <= 0.5] *= 0.95
+            #        D_step[ratio_D > 0.5] *= 1.05
         total_steps += n_steps*n_attempts
     runsecs = time.time() - starttime
     if debug:
