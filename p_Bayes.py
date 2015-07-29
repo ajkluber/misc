@@ -27,6 +27,10 @@ if __name__ == "__main__":
                         type=str,
                         required=True,
                         help="Name.")
+    parser.add_argument("--bins",
+                        type=str,
+                        required=True,
+                        help="Name.")
     parser.add_argument("--nonnative_variances",
                         type=str,
                         nargs="+",

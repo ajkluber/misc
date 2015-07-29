@@ -71,7 +71,7 @@ if __name__ == "__main__":
     Tf = float(open("Tf","r").read().rstrip("\n"))
 
     Tlist = [2*Tf, 2*Tf, 0.1*Tf, 0.1*Tf]
-    pslist = [0, 200, 50, 50]
+    pslist = [0, 200, 10, 50]
 
     model,fitopts = mdb.inputs.load_model(name)
 
