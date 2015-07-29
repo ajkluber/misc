@@ -10,7 +10,7 @@ dirs=`cat $1`
 #done
 
 echo "running TSprob"
-python -m misc.TSprob $1
+python -m misc.TSprobQ $1
 
 #if [ "$2" == "" ]; then
 #    echo "removing qimap.dat"
