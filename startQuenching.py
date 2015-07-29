@@ -69,7 +69,7 @@ if __name__ == "__main__":
     time = args.walltime
 
     replicas = [1]
-
+    
     for n in range(len(nonnative_variance)):
         for rep in replicas:
             #shutil.copy("sim_quenching.py","random_b2_%s/replica_%d/" % (nonnative_variance[n],rep))
@@ -77,20 +77,19 @@ if __name__ == "__main__":
             print "\nnonnative variance: ", nonnative_variance[n]
 
             if not os.path.exists("tables"):
-                print "Saving table files"
                 model,fitopts = mdb.inputs.load_model(name)
                 os.mkdir("tables")
                 os.chdir("tables")
+                print "Saving table files"
                 model.save_table_files()
                 os.chdir("..")
             else:
                 print "Don't need to save table files this time"
 
+            print "Going to run %d jobs, each with %d nodes; %d processors per node. %d total quenching simulations" % (n_jobs,n_nodes,ppn,n_jobs*n_processors_per_job)
             for j in range(n_jobs):
-                if j == 0:
-                    command = "srun python -m misc.sim_quenching --name %s" % name
-                else:
-                    command = "srun python -m misc.sim_quenching --name %s --rank_offset %d" % (name,rank_offset)
+                print "  running job", j
+                command = "srun python -m misc.sim_quenching --name %s --rank_offset %d" % (name,rank_offset)
 
                 # Submit job script
                 jobname = "%s_qnch_%d" % (name,j)
