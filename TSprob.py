@@ -1,6 +1,6 @@
-import numpy as np
 import os
 import sys
+import numpy as np
 
 import mdtraj as md
 
@@ -21,21 +21,17 @@ if __name__ == "__main__":
     for line in open("state_bounds.txt","r"):
         state_labels.append(line.split()[0])
         state_bounds.append([int(line.split()[1]),int(line.split()[2])])
-    native_pairs = np.loadtxt("native_contacts.ndx",skiprows=1,dtype=int) - 1
-    n_native_pairs = len(native_pairs)
-    native_distances = np.loadtxt("pairwise_params",usecols=(4,),skiprows=1)[1:2*n_native_pairs:2]
 
     native_pairs = np.loadtxt("%s/native_contacts.ndx" % dirs[0],skiprows=1,dtype=int) - 1
     n_native_pairs = len(native_pairs)
     native_distances = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(4,),skiprows=1)[1::2*n_native_pairs]
     for i in range(len(state_labels)):
+        print "calculating state", state_labels[i]
         state_label = state_labels[i]
         state_bound = state_bounds[i]
         n_frames = 0
         for j in range(len(dirs)):
             os.chdir(dirs[j])
-            #Q = np.loadtxt("Q.dat")
-            #qimap = np.loadtxt("qimap.dat")
             traj = md.load("traj.xtc",top="Native.pdb")
             distances = md.compute_distances(traj,native_pairs,periodic=False)
             if gaussian_contacts:
