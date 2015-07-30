@@ -27,10 +27,22 @@ if __name__ == "__main__":
                         type=str,
                         required=True,
                         help="Name.")
-    parser.add_argument("--bins",
+    parser.add_argument("--coord_file",
                         type=str,
                         required=True,
-                        help="Name.")
+                        help="Reaction coordinate file.")
+    parser.add_argument("--lag_frames",
+                        type=int,
+                        required=True,
+                        help="Lag time in frames.")
+    parser.add_argument("--n_bins",
+                        type=int,
+                        required=True,
+                        help="Number of bins.")
+    parser.add_argument("--gamma",
+                        type=float,
+                        required=True,
+                        help="Smoothing parameter.")
     parser.add_argument("--nonnative_variances",
                         type=str,
                         nargs="+",
@@ -48,6 +60,11 @@ if __name__ == "__main__":
     name = args.name
     nompi = args.nompi
     nonnative_variances = args.nonnative_variances
+    coord_file = args.coord_file
+    lag_frames = args.lag_frames
+    n_bins = args.n_bins
+    gamma = args.gamma
+
     if args.replicas is not None:
         replicas = "" 
         for i in range(len(args.replicas)):
@@ -61,12 +78,6 @@ if __name__ == "__main__":
 
         if not (len(nonnative_variances) == size):
             raise IOError("Number of processors %d must equal number of variances: %s" % (size,nonnative_variances.__str__()))
-
-    coord_file = "Q.dat"
-    lag_frames = 15
-    n_bins = 25
-    gamma = 0.1 
-
     
     if nompi:
         os.chdir("random_b2_%s" % nonnative_variances[0])  
