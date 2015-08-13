@@ -88,33 +88,37 @@ def partition_TP(Q,stateA,stateB):
         elif (currState == "A") and (prevState == "TP"):
             # If you are ending a potential TP
             if currState == fromState:
-                # Not reactive, just dwelling in B state.
+                # Not reactive, just fluctuations out of and into A state.
                 if dwellA == []:
                     dwellA = [tempTP]
                 else:
                     dwellA[-1].extend(tempTP)
             else:
-                # Reactive trajectory into B state!
+                # Reactive trajectory into A state! Starting to dwell
+                dwellA.append([])
                 TP_B_A.append(tempTP)
             fromState = currState
         elif (currState == "B") and (prevState == "TP"):
             # If you are ending a potential TP
             if currState == fromState:
-                # Not reactive, just dwelling in B state.
+                # Not reactive, just fluctuations out of and into B state.
                 if dwellB == []:
                     dwellB = [tempTP]
                 else:
                     dwellB[-1].extend(tempTP)
             else:
-                # Reactive trajectory into B state!
+                # Reactive trajectory into B state! Starting to dwell
+                dwellB.append([])
                 TP_A_B.append(tempTP)
             fromState = currState
         elif (currState == "A") and (prevState == "A"):
+            # Dwellin
             if dwellA == []:
                 dwellA.append([Q[i]])
             else:
                 dwellA[-1].append(Q[i])
         elif (currState == "B") and (prevState == "B"):
+            # Dwellin
             if dwellB == []:
                 dwellB.append([Q[i]])
             else:
@@ -198,10 +202,10 @@ if __name__ == "__main__":
     dir = directory
 
     ## Patition trajectory into reactive transition paths based on state
-    ## boundaries along some coordinate Q.
+    ## boundaries along some coordinate x.
     os.chdir(dir)
-    Q = np.loadtxt(coord)
-    TP, notTP, TPlengths, n_TPs, indicator = partition_TP(Q,stateA,stateB)
+    x = np.loadtxt(coord)
+    TP, notTP, TPlengths, n_TPs, indicator = partition_TP(x,stateA,stateB)
 
     ## Do TP analysis and save interesting data.
     if not os.path.exists("TPT"):
@@ -219,13 +223,13 @@ if __name__ == "__main__":
 
     tau_TP = np.mean(TPlengths)          # Average transition path length
 
-    maxQ = float(max(Q))
-    minQ = float(min(Q))
-    bins = np.linspace(minQ,maxQ,n_bins)
+    maxx = float(max(x))
+    minx = float(min(x))
+    bins = np.linspace(minx,maxx,n_bins)
 
-    N = float(len(Q))                           # Num frames total
+    N = float(len(x))                           # Num frames total
     N_TP = float(len(TP))                       # Num frames on TP's
-    Nr,bins = np.histogram(Q,bins=bins)         # Num times reaction coord falls in bin
+    Nr,bins = np.histogram(x,bins=bins)         # Num times reaction coord falls in bin
     Nr_TP,bins = np.histogram(TP,bins=bins)     # Num times reaction coord falls in bin on TP
 
     P_TP = N_TP/N                       # Prob of being on TP
