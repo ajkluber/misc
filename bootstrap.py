@@ -28,8 +28,10 @@ import time
 import shutil
 import argparse
 
+import pyximport
+pyximport.install()
+import resample_histo 
 import project_tools.analysis.wham as wham
-import resample_histo     ## Cython extension 
 
 def get_state_bounds(name,iteration):
     state_labels = []
