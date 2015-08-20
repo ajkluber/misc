@@ -1,58 +1,109 @@
+import os
+import argparse
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
 import pyemma.coordinates as coor
-#import pyemma.msm as msm
-#import pyemma.plots as mplt
 
 # TODO: Make complementary plotting script for:
 #   - PMF of TICA 1
 #   - PMF of TICA 1 vs Q.
 #   - PMF of TICA 1 vs TICA 2 (if possible).
 #   - TICA eigenvalues
-
+# Take correlation with Q to determine which way is 'folded'
+# Q = np.hstack([ np.loadtxt("%s/Q.dat" % x) for x in dirs])
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='.')
+    parser.add_argument('--temps', type=str, required=True, help='File holding directory names.')
+    parser.add_argument('--lag', type=int, required=True, help='Lag to use for TICA.')
+    parser.add_argument('--stride', type=int, required=True, help='Stride to use for TICA.')
+    parser.add_argument('--feature', type=str, required=True, help='Input feature to TICA.')
+    #parser.add_argument('--start', type=int, default=0,help='Starting index.')
+    #parser.add_argument('--verbose', actions='store_true', help='Verbose.')
+    args = parser.parse_args()
 
-    # Data resides here
-    dirs = ["137.60_%d" % x for x in range(1,4) ]
-    traj_list = [ "%s/traj.xtc" % x for x in dirs ]
-    topfile = "%s/Native.pdb" % dirs[0]
-    n_residues = len(open(topfile,"r").readlines()) - 1
-    native_pairs = np.loadtxt("%s/native_contacts.ndx" % dirs[0],dtype=int,skiprows=1) - 1
+    tempsfile = args.temps
+    lag = args.lag
+    stride = args.stride
+    feature = args.feature
+    
+    available_features = ["native_contacts","all_contacts"]
+    if feature not in available_features:
+        raise IOError("--feature should be in: %s" % available_features.__str__())
 
-    # NOTE: from pylab import * was used here. Need to add numpy,plt namespaces.
+    logging.basicConfig(filename="tica_%d_%d.log" % (lag,stride),
+                        filemode="w",
+                        format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
+                        datefmt="%H:%M:%S",
+                        level=logging.DEBUG)
 
-    all_pairs = []
-    for i in range(n_residues):
-        for j in range(i + 4,n_residues):
-            all_pairs.append([i,j])
-    all_pairs = np.array(all_pairs)
+    temps = [ x.rstrip("\n") for x in open(tempsfile,"r").readlines() ]
+    uniq_Tlist = []
+    Qlist = []
+    Tlist = []
+    for i in range(len(temps)):
+        T = temps[i].split("_")[0]
+        if T not in uniq_Tlist:
+            uniq_Tlist.append(T)
+            Tlist.append([temps[i]])
+        else:
+            idx = uniq_Tlist.index(T)
+            Tlist[idx].append(temps[i])
 
-    # Featurizer
-    print "setting up featurizer"
-    feat = coor.featurizer(topfile)
-    #feat.add_backbone_torsions(cossin=True)
-    #feat.add_distances_ca(periodic=False)
-    #feat.add_contacts(all_pairs,threshold=0.8,periodic=False)
-    feat.add_contacts(native_pairs,threshold=0.8,periodic=False)
+    logging.info("TICA inputs")
+    logging.info("  lag       = %d" % lag)
+    logging.info("  stride    = %d" % stride)
 
-    # Source trajectories
-    print 'sourcing trajectories'
-    inp = coor.source(traj_list, feat)
+    # For each unique temperature. Run TICA
+    for i in range(len(Tlist)):
+        dirs = Tlist[i]
+        logging.info("Running TICA T = %s" % uniq_Tlist[i])
 
-    # Stride has a drastic influence on the number of acceptable eigenvalues.
-    tica_obj = coor.tica(inp, lag=100, stride=5, var_cutoff=0.9, kinetic_map=True)
+        traj_list = [ "%s/traj.xtc" % x for x in dirs ]
+        topfile = "%s/Native.pdb" % dirs[0]
+        n_residues = len(open(topfile,"r").readlines()) - 1
 
-    # Check if eigenvalues go negative at some point. Truncate before that if necessary.
-    first_neg_eigval = np.where(tica_obj.eigenvalues < 0)[0][0]
-    print first_neg_eigval
+        logging.info("  picking features: ")
+        if feature == "all_contacts":
+            logging.info("    contacts between all pairs")
+            pairs = []
+            for n in range(n_residues):
+                for m in range(n + 4,n_residues):
+                    pairs.append([n,m])
+            pairs = np.array(pairs)
+        else:
+            logging.info("    contacts between native pairs")
+            pairs = np.loadtxt("%s/native_contacts.ndx" % dirs[0],dtype=int,skiprows=1) - 1
 
-    #hist(tica_obj.eigenvectors[:,0],bins=30)
-    Q = hstack([ loadtxt("137.60_%d/Q.dat" % x) for x in [1,2,3]])
+        # Featurizer parameterizes a pipeline to read in trajectory in chunks.
+        feat = coor.featurizer(topfile)
+        feat.add_contacts(pairs,threshold=0.8,periodic=False)
 
-    # Save principal TICA coordinate in each subdirectory
-    Y = tica_obj.get_output(dimensions=arange(1)) # get tica coordinates
+        # Source trajectories
+        logging.info("  sourcing trajectories: %s" % traj_list.__str__())
+        inp = coor.source(traj_list, feat)
 
-    # Take correlation with Q to determine which way is 'folded'
+        # Stride has a drastic influence on the number of acceptable eigenvalues.
+        logging.info("  computing TICA")
+        tica_obj = coor.tica(inp, lag=lag, stride=stride, var_cutoff=0.9, kinetic_map=True)
+
+        # Check if eigenvalues go negative at some point. Truncate before that if necessary.
+        first_neg_eigval = np.where(tica_obj.eigenvalues < 0)[0][0]
+        logging.info("  TICA done. Index of first negative eigenvalue: %d" % first_neg_eigval)
+        keep_dims = min([tica_obj.dimension(),first_neg_eigval])
+
+        # Save principal TICA coordinate in each subdirectory
+        logging.info("  getting output from TICA object")
+        Y = tica_obj.get_output(dimensions=np.arange(1)) # get tica coordinates
+
+        contact_weights = np.vstack((pairs[:,0],pairs[:,1],tica_obj.eigenvectors[:,0])).T
+
+        logging.info("  saving contact weights")
+        for n in range(len(dirs)):
+            os.chdir(dirs[n])
+            np.savetxt("tica1_weights.dat",contact_weights)
+            np.savetxt("tica1_%d_%d.dat" % (lag,stride),Y[n][:,0])
+            os.chdir("..")
 
