@@ -7,14 +7,6 @@ import numpy as np
 
 import pyemma.coordinates as coor
 
-# TODO: Make complementary plotting script for:
-#   - PMF of TICA 1
-#   - PMF of TICA 1 vs Q.
-#   - PMF of TICA 1 vs TICA 2 (if possible).
-#   - TICA eigenvalues
-# Take correlation with Q to determine which way is 'folded'
-# Q = np.hstack([ np.loadtxt("%s/Q.dat" % x) for x in dirs])
-
 if __name__ == "__main__":
     starttime = time.time()
 
@@ -53,13 +45,16 @@ if __name__ == "__main__":
 
     temps = [ x.rstrip("\n") for x in open(tempsfile,"r").readlines() ]
     uniq_Tlist = []
-    Qlist = []
     Tlist = []
+    Qlist = []
     for i in range(len(temps)):
         T = temps[i].split("_")[0]
         if T not in uniq_Tlist:
             uniq_Tlist.append(T)
             Tlist.append([temps[i]])
+            q = np.loadtxt("%s/Q.dat" % temps[i])
+            q += np.random.rand(q.shape[0])
+            Qlist.append(q)
         else:
             idx = uniq_Tlist.index(T)
             Tlist[idx].append(temps[i])
@@ -120,7 +115,12 @@ if __name__ == "__main__":
         else:
             Y = tica_obj.get_output(dimensions=np.arange(1)) # get tica coordinates
 
-        tica1_weights = np.vstack((pairs[:,0],pairs[:,1],tica_obj.eigenvectors[:,0])).T
+        # Match sign of Q; 'folding' = becoming more positive
+        corr = np.sign(np.dot(Qlist[i],Y[0])/(np.linalg.norm(Qlist[i])*np.linalg.norm(Y[0])))
+        for n in range(len(dirs)):
+            Y[n][:,0] *= corr
+
+        tica1_weights = np.vstack((pairs[:,0],pairs[:,1],corr*tica_obj.eigenvectors[:,0])).T
         if keep_dims >= 2:
             tica2_weights = np.vstack((pairs[:,0],pairs[:,1],tica_obj.eigenvectors[:,1])).T
     
