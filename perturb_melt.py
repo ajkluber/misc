@@ -9,7 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 import model_builder as mbd
-from misc.cube_cmap import cubecmap
+from plotter.cube_cmap import cubecmap
 
 import mdtraj as md
 import pymbar

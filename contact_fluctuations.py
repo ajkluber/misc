@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import logging 
 import numpy as np
 
 import mdtraj as md
@@ -20,15 +21,15 @@ def get_contact_function(contact_type,continuous):
             contact_function = lambda r,r0: (r <= 1.2*r0).astype(int)
     elif contact_type == "Gaussian":
         if continuous:
-            contact_function = lambda r,r0: 0.5*(np.tanh(((r0 + 0.1) - r)/0.5) + 1)
+            contact_function = lambda r,r0: 0.5*(np.tanh(2.*((r0 + 0.1) - r)/0.3) + 1)
         else:
             contact_function = lambda r,r0: (r <= (r0 + 0.1)).astype(int)
     else:
         raise IOError("--contact_type must be in " + acceptable_contact_types.__str__())
     return contact_function
 
-def get_native_nonnative_contacts(temps_file,contact_type,continuous):
-    print "Loading trajectories"
+def get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous):
+    logging.info("loading trajectories")
     dirs = [ x.rstrip("\n") for x in open(temps_file,"r").readlines() ]
     trajfiles = [ "%s/traj.xtc" % x for x in dirs ]
     traj = md.load(trajfiles,top="%s/Native.pdb" % dirs[0])
@@ -38,14 +39,25 @@ def get_native_nonnative_contacts(temps_file,contact_type,continuous):
     n_native_pairs = len(native_pairs)
     r0_native = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(4,),skiprows=1)[1:2*n_native_pairs:2]
     
-    print "Calculating native contacts"
+    logging.info("calculating native contacts")
     r_native = md.compute_distances(traj,native_pairs,periodic=False)
     contact_function = get_contact_function(contact_type,continuous)
     Qi_contacts = contact_function(r_native,r0_native)
     Qi_contacts = Qi_contacts.astype(float)
     Q = np.sum(Qi_contacts,axis=1)
+    if coord_file == "Q.dat":
+        coord = Q
+    else:
+        coord = np.concatenate([ np.loadtxt("%s/%s" % (dirs[i],coord_file)) for i in range(len(dirs)) ])
+        if coord_file[:5] == "tica1":
+            # Scale tica coordinates to correlate with Q
+            corr = np.dot(Q,coord)/(np.linalg.norm(Q)*np.linalg.norm(coord))
+            A = np.sign(corr)
+            coord *= A
+            coord -= coord.min()
+            coord /= coord.max()
 
-    print "Calculating nonnative contacts"
+    logging.info("calculating nonnative contacts")
     n_pairwise_lines = len(np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(0,),skiprows=1)[1::2])
     if n_pairwise_lines > n_native_pairs:  
         # Use non-native pairs in pairwise_params file.
@@ -73,7 +85,30 @@ def get_native_nonnative_contacts(temps_file,contact_type,continuous):
             np.savetxt("%s/A.dat" % dirs[i],A[offset:offset + length])
             offset += length
 
-    return n_residues,native_pairs,Qi_contacts,Q,nonnative_pairs,Ai_contacts,A
+    return n_residues,native_pairs,Qi_contacts,coord,nonnative_pairs,Ai_contacts,A
+
+def calculate_formation_for_coarse_states(coord,coord_name,Qi_contacts,Ai_contacts,n_residues,native_pairs,nonnative_pairs):
+    state_labels = []
+    state_bounds = []
+    for line in open("../%s_state_bounds.txt" % coord_name,"r"):
+        state_labels.append(line.split()[0])
+        state_bounds.append([float(line.split()[1]),float(line.split()[2])])
+
+    for i in range(len(state_labels)):
+        if not os.path.exists("cont_prob_%s.dat" % state_labels[i]):
+            if i == 0:
+                logging.info("calculating contact probability for:")
+            logging.info("  state %s" % state_labels[i])
+            state_indicator = (coord > state_bounds[i][0]) & (coord < state_bounds[i][1])
+            Qi_for_state = np.mean(Qi_contacts[state_indicator,:],axis=0)
+            Ai_for_state = np.mean(Ai_contacts[state_indicator,:],axis=0)
+            np.savetxt("Ai_%s.dat" % state_labels[i],Ai_for_state)
+            if not no_plots:
+                os.chdir("plots")
+                plot_contact_probability_map(state_labels[i],n_residues,native_pairs,Qi_for_state,"Qi")
+                plot_contact_probability_map(state_labels[i],n_residues,nonnative_pairs,Ai_for_state,"Ai")
+                os.chdir("..")
+            np.savetxt("Qi_%s.dat" % state_labels[i],Qi_for_state)
 
 def plot_contact_probability_map(state_label,n_residues,pairs,contact_probability,coord):
     # Plot contact probabilities
@@ -101,7 +136,16 @@ def plot_contact_probability_map(state_label,n_residues,pairs,contact_probabilit
     plt.savefig("map_%s_%s.pdf" % (coord,state_label),bbox_inches="tight")
     plt.savefig("map_%s_%s.eps" % (coord,state_label),bbox_inches="tight")
 
-def plot_contact_fluctuations_vs_Q(native_pairs,nonnative_pairs,Qbins,Qi_vs_Q,dQi2_vs_Q,A_vs_Q,Amax_vs_Q,dA2_vs_Q,Ai_vs_Q,dAi2_vs_Q,no_display):
+def label_and_save(xlabel,ylabel,title,saveas):
+    plt.xlabel(xlabel,fontsize=18)
+    plt.ylabel(ylabel,fontsize=18)
+    plt.title(title)
+    plt.savefig(saveas+".png",bbox_inches="tight")
+    plt.savefig(saveas+".pdf",bbox_inches="tight")
+    plt.savefig(saveas+".eps",bbox_inches="tight")
+    
+
+def plot_contact_fluctuations_vs_Q(coord_label,native_pairs,nonnative_pairs,Qbins,Qi_vs_Q,dQi2_vs_Q,A_vs_Q,Amax_vs_Q,dA2_vs_Q,Ai_vs_Q,dAi2_vs_Q,no_display):
     n_nat = len(native_pairs)
     nat_loops = (native_pairs[:,1] - native_pairs[:,0]).astype(float)
     nat_coloring = [ (nat_loops[i] - min(nat_loops))/(max(nat_loops) - min(nat_loops)) for i in range(n_nat) ]
@@ -113,80 +157,49 @@ def plot_contact_fluctuations_vs_Q(native_pairs,nonnative_pairs,Qbins,Qi_vs_Q,dQ
     plt.figure()
     for i in range(n_nat):
         plt.plot(Qbins,Qi_vs_Q[:,i],color=cubecmap(nat_coloring[i]))
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle Q_i \\rangle$",fontsize=18)
-    plt.title("Native contact formation")
-    plt.savefig("QivsQ.png",bbox_inches="tight")
-    plt.savefig("QivsQ.pdf",bbox_inches="tight")
-    plt.savefig("QivsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle Q_i \\rangle$","Native contact formation","Qivscoord")
 
     plt.figure()
     for i in range(n_nat):
         plt.plot(Qbins,dQi2_vs_Q[:,i],color=cubecmap(nat_coloring[i]))
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle\delta Q_i^2 \\rangle$",fontsize=18)
-    plt.title("Native contact fluctuations")
-    plt.savefig("dQi2vsQ.png",bbox_inches="tight")
-    plt.savefig("dQi2vsQ.pdf",bbox_inches="tight")
-    plt.savefig("dQi2vsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle Q_i^2 \\rangle$","Native contact fluctuations","dQi2vscoord")
 
     plt.figure()
     plt.plot(Qbins,A_vs_Q)
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle A \\rangle$",fontsize=18)
-    plt.title("Average non-native contacts")
-    plt.savefig("AvsQ.png",bbox_inches="tight")
-    plt.savefig("AvsQ.pdf",bbox_inches="tight")
-    plt.savefig("AvsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle A \\rangle$","Average non-native contacts","Avscoord")
 
     plt.figure()
     plt.plot(Qbins,Amax_vs_Q)
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("max$\left( A \\right)$",fontsize=18)
-    plt.title("Max non-native contacts")
-    plt.savefig("AmaxvsQ.png",bbox_inches="tight")
-    plt.savefig("AmaxvsQ.pdf",bbox_inches="tight")
-    plt.savefig("AmaxvsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"max$\left( A \\right)$","Max non-native contacts","Amaxvscoord")
 
     plt.figure()
     plt.plot(Qbins,dA2_vs_Q)
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle\delta A^2 \\rangle$",fontsize=18)
-    plt.title("Non-native contact fluctuations")
-    plt.savefig("dA2vsQ.png",bbox_inches="tight")
-    plt.savefig("dA2vsQ.pdf",bbox_inches="tight")
-    plt.savefig("dA2vsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle\delta A^2  \\rangle$","Non-native contact fluctuations","dA2vscoord")
 
     plt.figure()
     for i in range(n_nnat):
         plt.plot(Qbins,Ai_vs_Q[:,i],color=cubecmap(nnat_coloring[i]))
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle A_i \\rangle$",fontsize=18)
-    plt.title("Non-native contacts")
-    plt.savefig("AivsQ.png",bbox_inches="tight")
-    plt.savefig("AivsQ.pdf",bbox_inches="tight")
-    plt.savefig("AivsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle A_i \\rangle$","Non-native contacts","Aivscoord")
 
     plt.figure()
     for i in range(n_nnat):
         plt.plot(Qbins,dAi2_vs_Q[:,i],color=cubecmap(nnat_coloring[i]))
-    plt.xlabel("$Q$",fontsize=18)
-    plt.ylabel("$\langle\delta A_i^2 \\rangle$",fontsize=18)
-    plt.title("Non-native contact fluctuations")
-    plt.savefig("dAi2vsQ.png",bbox_inches="tight")
-    plt.savefig("dAi2vsQ.pdf",bbox_inches="tight")
-    plt.savefig("dAi2vsQ.eps",bbox_inches="tight")
+    label_and_save(coord_label,"$\langle\delta A_i^2 \\rangle$","Non-native contact fluctuations","dAi2vscoord")
 
     if not no_display:
         plt.show()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Bayesian estimation of 1D diffusion model.")
+    parser = argparse.ArgumentParser(description="Calculate fluctuations of native and non-native contacts.")
     parser.add_argument("--temps_file", 
                         type=str, 
                         required=True,
                         help="Name of file with temps to include.")
+    parser.add_argument("--coord_file", 
+                        type=str, 
+                        required=True,
+                        help="Name of file with reaction coordinate. If 'Q.dat' Q is calculated.")
     parser.add_argument("--contact_type", 
                         type=str,
                         default="Gaussian",
@@ -194,6 +207,10 @@ if __name__ == "__main__":
     parser.add_argument("--continuous", 
                         action="store_true",
                         help="Calculate contacts using smooth tanh instead of step function")
+    parser.add_argument("--n_bins", 
+                        type=int, 
+                        default=30,
+                        help="Name of file with reaction coordinate. If 'Q.dat' Q is calculated.")
     parser.add_argument("--no_display", 
                         action="store_true",
                         help="No access to display, so plots will be saved but not shown.")
@@ -206,60 +223,56 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     temps_file = args.temps_file
+    coord_file = args.coord_file
+    coord_name = coord_file.split(".")[0]
+    file_ext = coord_file.split(".")[-1]
     contact_type = args.contact_type 
     continuous = args.continuous
     no_display = args.no_display
     no_plots = args.no_plots
-    n_bins = 30
+    n_bins = args.n_bins
+
+    if coord_name == "Q":
+        coord_label = "$Q$"
+    elif coord_name[:5] == "tica1":
+        coord_label = "$\psi_1$"
+    else:
+        coord_label = coord_name
+
+    if not os.path.exists("contact_fluct_vs_%s" % coord_name):
+        os.mkdir("contact_fluct_vs_%s" % coord_name)
+
+    logfilename = "contact_fluct_vs_%s/fluct.log" % coord_name
+    logging.basicConfig(filename=logfilename,
+                        filemode="w",
+                        format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
+                        datefmt="%H:%M:%S",
+                        level=logging.DEBUG)
 
     if not no_plots:
         if no_display:
             import matplotlib
             matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        from misc.cube_cmap import cubecmap
+        from plotter.cube_cmap import cubecmap
 
-    n_residues,native_pairs,Qi_contacts,Q,nonnative_pairs,Ai_contacts,A = get_native_nonnative_contacts(temps_file,contact_type,continuous)
+    n_residues,native_pairs,Qi_contacts,coord,nonnative_pairs,Ai_contacts,A = get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous)
     n_native_pairs = len(native_pairs)
     n_nonnative_pairs = len(nonnative_pairs)
 
-    if not os.path.exists("contact_fluct_vs_Q"):
-        os.mkdir("contact_fluct_vs_Q")
-    os.chdir("contact_fluct_vs_Q")
+    os.chdir("contact_fluct_vs_%s" % coord_name)
     if not no_plots:
         if not os.path.exists("plots"):
             os.mkdir("plots")
 
-    ###########################################################################
-    # Calculate contact formation 
-    ###########################################################################
-    if os.path.exists("../state_bounds.txt"):
-        state_labels = []
-        state_bounds = []
-        for line in open("../state_bounds.txt","r"):
-            state_labels.append(line.split()[0])
-            state_bounds.append([int(line.split()[1]),int(line.split()[2])])
-
-        for i in range(len(state_labels)):
-            if not os.path.exists("cont_prob_%s.dat" % state_labels[i]):
-                if i == 0:
-                    print "Calculating contact probability for:"
-                print "  state %s" % state_labels[i]
-                state_indicator = (Q > state_bounds[i][0]) & (Q < state_bounds[i][1])
-                Qi_for_state = np.mean(Qi_contacts[state_indicator,:],axis=0)
-                Ai_for_state = np.mean(Ai_contacts[state_indicator,:],axis=0)
-                np.savetxt("Ai_%s.dat" % state_labels[i],Ai_for_state)
-                if not no_plots:
-                    os.chdir("plots")
-                    plot_contact_probability_map(state_labels[i],n_residues,native_pairs,Qi_for_state,"Qi")
-                    plot_contact_probability_map(state_labels[i],n_residues,nonnative_pairs,Ai_for_state,"Ai")
-                    os.chdir("..")
-                np.savetxt("Qi_%s.dat" % state_labels[i],Qi_for_state)
+    # Calculate contact formation for coarse states along reaction coordinate.
+    if os.path.exists("../%s_state_bounds.txt" % coord_name):
+        calculate_formation_for_coarse_states(coord,coord_name,Qi_contacts,Ai_contacts,n_residues,native_pairs,nonnative_pairs)
 
     ###########################################################################
-    # Calculate contact fluctuations vs reaction coordinate
+    # Calculate contact fluctuations vs reaction coordinate with finer bins
     ###########################################################################
-    print "Calculating Qi with %d" % n_bins
+    logging.info("calculating Qi with %d" % n_bins)
     Qi_vs_Q = np.zeros((n_bins,n_native_pairs),float)
     dQi2_vs_Q = np.zeros((n_bins,n_native_pairs),float)
     A_vs_Q = np.zeros(n_bins,float)
@@ -267,12 +280,12 @@ if __name__ == "__main__":
     Amax_vs_Q = np.zeros(n_bins,float)
     Ai_vs_Q = np.zeros((n_bins,n_nonnative_pairs),float)
     dAi2_vs_Q = np.zeros((n_bins,n_nonnative_pairs),float)
-    minQ = min(Q)
-    maxQ = max(Q)
+    minQ = min(coord)
+    maxQ = max(coord)
     Qbins = np.linspace(minQ,maxQ,n_bins)
     incQ = (float(maxQ) - float(minQ))/float(n_bins)
     for n in range(n_bins):
-        state_indicator = (Q > (minQ + n*incQ)) & (Q <= (minQ + (n+1)*incQ))
+        state_indicator = (coord > (minQ + n*incQ)) & (coord <= (minQ + (n+1)*incQ))
         Qi_vs_Q[n,:] = np.mean(Qi_contacts[state_indicator,:],axis=0)
         dQi2_vs_Q[n,:] = np.var(Qi_contacts[state_indicator,:],axis=0)
         A_vs_Q[n] = np.mean(A[state_indicator])
@@ -281,17 +294,17 @@ if __name__ == "__main__":
         Ai_vs_Q[n,:] = np.mean(Ai_contacts[state_indicator,:],axis=0)
         dAi2_vs_Q[n,:] = np.var(Ai_contacts[state_indicator,:],axis=0)
     
-    np.savetxt("Qbins.dat",Qbins)
-    np.savetxt("QivsQ.dat",Qi_vs_Q)
-    np.savetxt("dQi2vsQ.dat",dQi2_vs_Q)
-    np.savetxt("AvsQ.dat",A_vs_Q)
-    np.savetxt("dA2vsQ.dat",dA2_vs_Q)
-    np.savetxt("AmaxvsQ.dat",Amax_vs_Q)
-    np.savetxt("AivsQ.dat",Ai_vs_Q)
-    np.savetxt("dAi2vsQ.dat",dAi2_vs_Q)
+    np.savetxt("coordbins.dat",Qbins)
+    np.savetxt("Qivscoord.dat",Qi_vs_Q)
+    np.savetxt("dQi2vscoord.dat",dQi2_vs_Q)
+    np.savetxt("Avscoord.dat",A_vs_Q)
+    np.savetxt("dA2vscoord.dat",dA2_vs_Q)
+    np.savetxt("Amaxvscoord.dat",Amax_vs_Q)
+    np.savetxt("Aivscoord.dat",Ai_vs_Q)
+    np.savetxt("dAi2vscoord.dat",dAi2_vs_Q)
 
     if not no_plots:
         os.chdir("plots")
-        plot_contact_fluctuations_vs_Q(native_pairs,nonnative_pairs,Qbins,Qi_vs_Q,dQi2_vs_Q,A_vs_Q,Amax_vs_Q,dA2_vs_Q,Ai_vs_Q,dAi2_vs_Q,no_display)
+        plot_contact_fluctuations_vs_Q(coord_label,native_pairs,nonnative_pairs,Qbins,Qi_vs_Q,dQi2_vs_Q,A_vs_Q,Amax_vs_Q,dA2_vs_Q,Ai_vs_Q,dAi2_vs_Q,no_display)
         os.chdir("..")
     os.chdir("..")

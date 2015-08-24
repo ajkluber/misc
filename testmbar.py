@@ -5,7 +5,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from misc.cube_cmap import cubecmap
+from plotter.cube_cmap import cubecmap
 
 import pymbar
 
