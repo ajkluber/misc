@@ -108,9 +108,9 @@ if __name__ == "__main__":
             keep_dims = 1
         else:
             if sum(tica_obj.eigenvalues < 0) > 0:
-                logger.info("    first negative eigenvalue: %d" % first_neg_eigval)
                 first_neg_eigval = np.where(tica_obj.eigenvalues < 0)[0][0]
                 keep_dims = min([tica_obj.dimension(),first_neg_eigval])
+                logger.info("    first negative eigenvalue: %d" % first_neg_eigval)
             else:
                 logger.info("    no negative eigenvalues")
                 keep_dims = tica_obj.dimension()
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             Y = tica_obj.get_output(dimensions=np.arange(1)) # get tica coordinates
 
         # Match sign of Q; 'folding' = becoming more positive
-        corr = np.sign(np.dot(Qlist[i],Y[0][:,0])/(np.linalg.norm(Qlist[i])*np.linalg.norm(Y[0][:,0])))
+        corr = np.sign(np.dot(Qlist[0],Y[0][:,0])/(np.linalg.norm(Qlist[0])*np.linalg.norm(Y[0][:,0])))
         for n in range(len(dirs)):
             Y[n][:,0] *= corr
 
