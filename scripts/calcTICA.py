@@ -102,14 +102,18 @@ if __name__ == "__main__":
         tica_obj = coor.tica(inp, lag=lag, stride=stride, var_cutoff=0.9, kinetic_map=True)
 
         # Check if eigenvalues go negative at some point. Truncate before that if necessary.
+        logger.info("  TICA done")
+        logger.info("    number of dimensions: %d" % tica_obj.dimension())
         if tica_obj.dimension() == 1:
             keep_dims = 1
         else:
-            first_neg_eigval = np.where(tica_obj.eigenvalues < 0)[0][0]
-            keep_dims = min([tica_obj.dimension(),first_neg_eigval])
-        logger.info("  TICA done")
-        logger.info("    number of dimensions: %d" % tica_obj.dimension())
-        logger.info("    first negative eigenvalue: %d" % first_neg_eigval)
+            if sum(tica_obj.eigenvalues < 0) > 0:
+                logger.info("    first negative eigenvalue: %d" % first_neg_eigval)
+                first_neg_eigval = np.where(tica_obj.eigenvalues < 0)[0][0]
+                keep_dims = min([tica_obj.dimension(),first_neg_eigval])
+            else:
+                logger.info("    no negative eigenvalues")
+                keep_dims = tica_obj.dimension()
 
         # Save principal TICA coordinate(s) in each subdirectory
         logger.info("  getting output from TICA object")

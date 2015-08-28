@@ -42,5 +42,6 @@ if __name__ == "__main__":
 
     if corr == -1:
         psi1_w = np.loadtxt("tica_%s_%d_%d/%s_weights.dat" % (prefix,lag,stride,filename))
-        np.savetxt("tica_%s_%d_%d/%s_weights.dat" % (prefix,lag,stride,filename),corr*psi1_w)
+        psi1_w[:,2] *= -1
+        np.savetxt("tica_%s_%d_%d/%s_weights.dat" % (prefix,lag,stride,filename),psi1_w)
          
