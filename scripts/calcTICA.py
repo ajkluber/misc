@@ -119,7 +119,7 @@ if __name__ == "__main__":
             Y = tica_obj.get_output(dimensions=np.arange(1)) # get tica coordinates
 
         # Match sign of Q; 'folding' = becoming more positive
-        corr = np.sign(np.dot(Qlist[i],Y[0])/(np.linalg.norm(Qlist[i])*np.linalg.norm(Y[0])))
+        corr = np.sign(np.dot(Qlist[i],Y[0][:,0])/(np.linalg.norm(Qlist[i])*np.linalg.norm(Y[0][:,0])))
         for n in range(len(dirs)):
             Y[n][:,0] *= corr
 
