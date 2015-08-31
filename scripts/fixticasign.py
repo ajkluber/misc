@@ -35,8 +35,8 @@ if __name__ == "__main__":
         if i == 0:
             Q = np.loadtxt("Q.dat")
             corr = np.sign(np.dot(Q,psi1)/(np.linalg.norm(psi1)*np.linalg.norm(Q)))
-            print "changing sign of psi1"
         if corr == -1:
+            print "changing sign of psi1"
             np.savetxt("%s.dat" % filename,corr*psi1)
         os.chdir("..")
 
