@@ -203,14 +203,14 @@ if __name__ == "__main__":
     parser.add_argument("--contact_type", 
                         type=str,
                         default="Gaussian",
-                        help="Use relative cutoff for contact_type contacts. Else assume Gaussian.")
+                        help="Use relative cutoff for contact_type contacts. Default: Gaussian.")
     parser.add_argument("--continuous", 
                         action="store_true",
                         help="Calculate contacts using smooth tanh instead of step function")
     parser.add_argument("--n_bins", 
                         type=int, 
                         default=30,
-                        help="Name of file with reaction coordinate. If 'Q.dat' Q is calculated.")
+                        help="Number of bins along reaction coordinate. default = 30")
     parser.add_argument("--no_display", 
                         action="store_true",
                         help="No access to display, so plots will be saved but not shown.")
