@@ -4,7 +4,12 @@ import argparse
 import logging 
 import numpy as np
 
+from memory_profiler import profile
+
 import mdtraj as md
+
+
+# TODO: Split up calculation of native and nonnative contacts. Non-native contacts take up too much memory.
 
 def file_len(fname):
     with open(fname) as f:
@@ -16,55 +21,65 @@ def get_contact_function(contact_type,continuous):
     acceptable_contact_types = ["LJ1210","Gaussian"]
     if contact_type == "LJ1210":
         if continuous:
-            contact_function = lambda r,r0: 0.5*(np.tanh((1.2*r0 - r)/0.5) + 1)
+            contact_function = lambda r,r0: 0.5*(np.tanh(2.*(1.2*r0 - r)/0.2) + 1)
         else:
             contact_function = lambda r,r0: (r <= 1.2*r0).astype(int)
     elif contact_type == "Gaussian":
         if continuous:
-            contact_function = lambda r,r0: 0.5*(np.tanh(2.*((r0 + 0.1) - r)/0.3) + 1)
+            contact_function = lambda r,r0: 0.5*(np.tanh(2.*((r0 + 0.1) - r)/0.2) + 1)
         else:
             contact_function = lambda r,r0: (r <= (r0 + 0.1)).astype(int)
     else:
         raise IOError("--contact_type must be in " + acceptable_contact_types.__str__())
     return contact_function
 
+def calculate_contacts(dirs,contact_function,native_pairs,nonnative_pairs,r0_native,r0_nonnative):
+    """Calculate contacts for trajectories"""
+    n_frames = np.sum([ file_len("%s/Q.dat" % dirs[i]) for i in range(len(dirs)) ])
+    
+    Qi_contacts = np.zeros((n_frames,native_pairs.shape[0]),float)
+    Ai_contacts = np.zeros((n_frames,nonnative_pairs.shape[0]),float)
+
+    logging.info("calculating native/nonnative contacts")
+    chunk_sum = 0
+    # Loop over trajectory subdirectories.
+    for n in range(len(trajfiles)):
+        # Loop over chunks of each trajectory.
+        for chunk in md.iterload(trajfiles[n],top="%s/Native.pdb" % dirs[0]):
+            chunk_len = chunk.n_frames
+
+            r_temp = md.compute_distances(chunk,native_pairs,periodic=False)
+            Qi_temp = contact_function(r_temp,r0_native)
+            Qi_contacts[chunk_sum:chunk_sum + chunk_len,:] = Qi_temp
+
+            r_temp = md.compute_distances(chunk,nonnative_pairs,periodic=False)
+            Ai_temp = contact_function(r_temp,r0_nonnative)
+            Ai_contacts[chunk_sum:chunk_sum + chunk_len,:] = Ai_temp
+
+            chunk_sum += chunk_len
+
+    A = np.sum(Ai_contacts,axis=1)
+
+    return Qi_contacts, Ai_contacts, A
+
 def get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous):
+    """Get contacts  """
     logging.info("loading trajectories")
     dirs = [ x.rstrip("\n") for x in open(temps_file,"r").readlines() ]
     trajfiles = [ "%s/traj.xtc" % x for x in dirs ]
-    traj = md.load(trajfiles,top="%s/Native.pdb" % dirs[0])
 
     n_residues = len(open("%s/Native.pdb" % dirs[0],"r").readlines()) - 1
     native_pairs = np.loadtxt("%s/native_contacts.ndx" % dirs[0],skiprows=1,dtype=int) - 1
     n_native_pairs = len(native_pairs)
     r0_native = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(4,),skiprows=1)[1:2*n_native_pairs:2]
-    
-    logging.info("calculating native contacts")
-    r_native = md.compute_distances(traj,native_pairs,periodic=False)
-    contact_function = get_contact_function(contact_type,continuous)
-    Qi_contacts = contact_function(r_native,r0_native)
-    Qi_contacts = Qi_contacts.astype(float)
-    Q = np.sum(Qi_contacts,axis=1)
-    if coord_file == "Q.dat":
-        coord = Q
-    else:
-        coord = np.concatenate([ np.loadtxt("%s/%s" % (dirs[i],coord_file)) for i in range(len(dirs)) ])
-        if coord_file[:5] == "tica1":
-            # Scale tica coordinates to correlate with Q
-            corr = np.dot(Q,coord)/(np.linalg.norm(Q)*np.linalg.norm(coord))
-            A = np.sign(corr)
-            coord *= A
-            coord -= coord.min()
-            coord /= coord.max()
 
-    logging.info("calculating nonnative contacts")
     n_pairwise_lines = len(np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(0,),skiprows=1)[1::2])
     if n_pairwise_lines > n_native_pairs:  
         # Use non-native pairs in pairwise_params file.
         nonnative_pairs = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(0,1),skiprows=1,dtype=int)[2*n_native_pairs + 1::2] - 1
         r0_nonnative = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(4,),skiprows=1)[2*n_native_pairs + 1::2]
     else:
-        # Construct list of non-native pairs.
+        # Construct list of all non-native pairs.
         nonnative_pairs = []
         list_native_pairs = [ list(p) for p in native_pairs ]
         for i in range(n_residues):
@@ -73,11 +88,15 @@ def get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous)
                     nonnative_pairs.append([i,j])
         nonnative_pairs = np.array(nonnative_pairs)
         r0_nonnative = 0.5*np.ones(len(nonnative_pairs),float)
-    n_nonnative_pairs = len(nonnative_pairs)
-    r_nonnative = md.compute_distances(traj,nonnative_pairs,periodic=False)
-    Ai_contacts = contact_function(r_nonnative,r0_nonnative)
-    Ai_contacts = Ai_contacts.astype(float)
-    A = np.sum(Ai_contacts,axis=1)
+
+    contact_function = get_contact_function(contact_type,continuous)
+    Qi_contacts, Ai_contacts, A = calculate_contacts(dirs,contact_function,native_pairs,nonnative_pairs,r0_native,r0_nonnative)
+
+    if coord_file == "Q.dat":
+        coord = np.sum(Qi_contacts,axis=1)
+    else:
+        coord = np.concatenate([ np.loadtxt("%s/%s" % (dirs[i],coord_file)) for i in range(len(dirs)) ])
+
     offset = 0
     for i in range(len(dirs)):
         if not os.path.exists("%s/A.dat" % dirs[i]):
@@ -85,7 +104,8 @@ def get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous)
             np.savetxt("%s/A.dat" % dirs[i],A[offset:offset + length])
             offset += length
 
-    return n_residues,native_pairs,Qi_contacts,coord,nonnative_pairs,Ai_contacts,A
+    return n_residues, native_pairs, Qi_contacts, coord, nonnative_pairs, Ai_contacts, A
+
 
 def calculate_formation_for_coarse_states(coord,coord_name,Qi_contacts,Ai_contacts,n_residues,native_pairs,nonnative_pairs):
     state_labels = []
