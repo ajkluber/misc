@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import argparse
 import logging 
 import numpy as np
@@ -9,8 +10,6 @@ import mdtraj as md
 # Script utility for the calculation of contact based reaction coordinates
 
 
-global supported_functions
-supported_functions = {"step":step_contact,"tanh":tanh_contact}
 
 def file_len(fname):
     with open(fname) as f:
@@ -78,6 +77,9 @@ def preallocate_if_possible(dirs):
 
 if __name__ == "__main__":
 
+    global supported_functions
+    supported_functions = {"step":step_contact,"tanh":tanh_contact}
+
     # Need to specify
 
     # Data source
@@ -87,32 +89,58 @@ if __name__ == "__main__":
     trajfiles = [ "%s/traj.xtc" % x for x in dirs ]
     topology = "%s/Native.pdb" % dirs[0]
     periodic = False
+    chunk = 100
 
     # Parameterization of contact-based reaction coordinate
-    contact_type = "Gaussian"
+    #contact_type = "Gaussian"
+    contact_function = "tanh"
     save_coord_as = "Qtanh.dat"
     native_pairs = np.loadtxt("%s/native_contacts.ndx" % dirs[0],skiprows=1,dtype=int) - 1
     n_native_pairs = len(native_pairs)
     r0_native = np.loadtxt("%s/pairwise_params" % dirs[0],usecols=(4,),skiprows=1)[1:2*n_native_pairs:2]
-    contact_params = (r0_native) 
+    widths = 0.1*np.ones(r0_native.shape[0],float)
+    contact_params = (r0_native,widths)
     pairs = native_pairs
 
     # Parameterize contact function 
-    contact_function = get_contact_function(contact_type,contact_params)
+    contact_function = get_contact_function(contact_function,contact_params)
+
+
+    raise SystemExit
+
+    # set up logging
+    logging.basicConfig(filename="contacts.log",
+                        filemode="w",
+                        format="%(levelname)s:%(asctime)s: %(message)s",
+                        datefmt="%H:%M:%S",
+                        level=logging.DEBUG)
+    console = logging.StreamHandler()
+    #console.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(levelname)s:%(asctime)s: %(message)s")
+    console.setFormatter(formatter)
+    logger = logging.getLogger('contacts')
+    logger.addHandler(console)
+
+    logger.info("testing")
+    logger.debug("testing")
+
 
     #n_frames = np.sum([ file_len("%s/Q.dat" % dirs[i]) for i in range(len(dirs)) ])
     #Qtanh = np.zeros(n_frames,float)
+
+    #crunch_contacts(dirs,trajfiles,pairs,contact_function,topology,chunk,periodic,)
 
     # Preallocate arrays if we can tell the length of trajectories
     preallocated,contacts,traj_n_frames = preallocate_if_possible(dirs)
 
     if preallocated:
+        # Fill up preallocated array. Should be the faster option.
         chunk_sum = 0
-        # In order to save memory we loop over trajectories in chunks.
         for n in range(len(trajfiles)):
             traj_len = 0
             traj_start = chunk_sum
-            for chunk in md.iterload(trajfiles[n],top=topology):
+            # In order to save memory we loop over trajectories in chunks.
+            for chunk in md.iterload(trajfiles[n],top=topology,chunk=chunk):
                 chunk_len = chunk.n_frames
 
                 r = md.compute_distances(chunk,pairs,periodic=periodic)
@@ -124,41 +152,34 @@ if __name__ == "__main__":
 
             for i in range(n_dirs):
                 np.savetxt("%s/%s" % (dirs[i],save_coord_as),contacts[traj_start:traj_start + traj_n_frames[n]])
-        n_frames = np.sum(traj_n_frames)
     else:
+        # Collect results in list. 
         chunk_sum = 0
-        # In order to save memory we loop over trajectories in chunks.
         for n in range(len(trajfiles)):
             traj_len = 0
 
-            contacts_traj =  
-            for chunk in md.iterload(trajfiles[n],top=topology):
+            contacts_traj = []
+            # In order to save memory we loop over trajectories in chunks.
+            for chunk in md.iterload(trajfiles[n],top=topology,chunk=chunk):
                 chunk_len = chunk.n_frames
-
+            
                 r = md.compute_distances(chunk,pairs,periodic=periodic)
                 cont_temp = np.sum(contact_function(r),axis=1)
-                if not preallocated:
-                    contacts_traj.extend(cont_temp)
-                else:
-                    contacts[chunk_sum:chunk_sum + chunk_len,:] = cont_temp
+                contacts_traj.extend(cont_temp)
 
                 chunk_sum += chunk_len
                 traj_len += chunk_len
 
-            if not preallocated:
-                contact.extend(contact_traj)
-                traj_n_frames.append(traj_len)
-                for i in range(n_dirs):
-                    with open("%s/n_frames" % dirs[i],"w") as fout:
-                        fout.write("%d" % traj_len)
-                contact_traj = np.array(contact_traj)
-            else:
-                contact_traj = contacts[ :]
+            contacts.extend(contacts_traj)
+            contacts_traj = np.array(contact_traj)
+
+            traj_n_frames.append(traj_len)
+            for i in range(n_dirs):
+                with open("%s/n_frames" % dirs[i],"w") as fout:
+                    fout.write("%d" % traj_len)
 
             for i in range(n_dirs):
-                np.savetxt("%s/%s" % (dirs[i],save_coord_as),):
-                    fout.write("%d" % traj_len)
-        n_frames = np.sum(traj_n_frames)
-        if not preallocated:
-            contacts = np.array(contacts)
+                np.savetxt("%s/%s" % (dirs[i],save_coord_as),contacts_traj)
+        contacts = np.array(contacts)
 
+    n_frames = np.sum(traj_n_frames)
