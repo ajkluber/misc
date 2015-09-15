@@ -27,21 +27,19 @@ if __name__ == "__main__":
 
     temps = [ x.rstrip("\n") for x in open(tempsfile,"r").readlines() ]
 
-    filename = "tica1_%s_%d_%d" % (prefix,lag,stride)
-
     for i in range(len(temps)):
         os.chdir(temps[i])
-        psi1 = np.loadtxt("%s.dat" % filename)
+        psi1 = np.loadtxt("tica1_%s_%d.dat" % (prefix,lag))
         if i == 0:
             Q = np.loadtxt("Q.dat")
             corr = np.sign(np.dot(Q,psi1)/(np.linalg.norm(psi1)*np.linalg.norm(Q)))
         if corr == -1:
             print "changing sign of psi1"
-            np.savetxt("%s.dat" % filename,corr*psi1)
+            np.savetxt("tica1_%s_%d.dat" % (prefix,lag),corr*psi1)
         os.chdir("..")
 
     if corr == -1:
-        psi1_w = np.loadtxt("tica_%s_%d_%d/%s_weights.dat" % (prefix,lag,stride,filename))
+        psi1_w = np.loadtxt("tica_%s_%d/tica1_weights.dat" % (prefix,lag))
         psi1_w[:,2] *= -1
-        np.savetxt("tica_%s_%d_%d/%s_weights.dat" % (prefix,lag,stride,filename),psi1_w)
+        np.savetxt("tica_%s_%d/tica1_weights.dat" % (prefix,lag),psi1_w)
          
