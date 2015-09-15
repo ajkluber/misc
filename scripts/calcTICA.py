@@ -31,10 +31,10 @@ if __name__ == "__main__":
     else:
         prefix = "nat"
 
-    if not os.path.exists("tica_%s_%d_%d" % (prefix,lag,stride)):
-        os.mkdir("tica_%s_%d_%d" % (prefix,lag,stride))
+    if not os.path.exists("tica_%s_%d" % (prefix,lag)):
+        os.mkdir("tica_%s_%d" % (prefix,lag))
 
-    logging.basicConfig(filename="tica_%s_%d_%d/tica.log" % (prefix,lag,stride),
+    logging.basicConfig(filename="tica_%s_%d/tica.log" % (prefix,lag),
                         filemode="w",
                         format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
                         datefmt="%H:%M:%S",
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     
         # Save general TICA info
         logger.info("  saving TICA weights")
-        os.chdir("tica_%s_%d_%d" % (prefix,lag,stride))
+        os.chdir("tica_%s_%d" % (prefix,lag))
         if os.path.exists("TICA_parameters"):
             shutil.move("TICA_parameters","old_TICA_parameters")
         with open("TICA_parameters","w") as fout:
@@ -149,17 +149,17 @@ if __name__ == "__main__":
             fout.write("keep dims  %d\n" % keep_dims)
 
         np.savetxt("eigenvalues.dat",tica_obj.eigenvalues)
-        np.savetxt("tica1_%s_%d_%d_weights.dat" % (prefix,lag,stride),tica1_weights)
+        np.savetxt("tica1_weights.dat",tica1_weights)
         if keep_dims >= 2:
-            np.savetxt("tica2_%s_%d_%d_weights.dat" % (prefix,lag,stride),tica2_weights)
+            np.savetxt("tica2_weights.dat",tica2_weights)
         os.chdir("..")
 
         logger.info("  saving TICA timeseries in directories")
         for n in range(len(dirs)):
             os.chdir(dirs[n])
-            np.savetxt("tica1_%s_%d_%d.dat" % (prefix,lag,stride),Y[n][:,0])
+            np.savetxt("tica1_%s_%d.dat" % (prefix,lag),Y[n][:,0])
             if keep_dims >= 2:
-                np.savetxt("tica2_%s_%d_%d.dat" % (prefix,lag,stride),Y[n][:,1])
+                np.savetxt("tica2_%s_%d.dat" % (prefix,lag),Y[n][:,1])
             os.chdir("..")
     dt = time.time() - starttime
     logger.info("Running took: %.4f sec   %.4f min" % (dt,dt/60.))
