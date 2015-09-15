@@ -1,11 +1,9 @@
-import os
 import pdb
+import os
 import argparse
 import numpy as np
 
 from memory_profiler import profile
-
-#import model_builder.models.pdb_parser as pdb_parser
 
 import misc.scripts.util as util
 
@@ -16,9 +14,19 @@ def get_args():
             required=True,
             help='File holding directory names.')
 
+    parser.add_argument('--coordfile',
+            type=str,
+            required=True,
+            help='File of reaction coordinate.')
+
     parser.add_argument('--function',
             type=str,
             required=True,
+            help='Contact functional form.')
+
+    parser.add_argument('--n_bins',
+            type=int,
+            default=40,
             help='Contact functional form.')
 
     parser.add_argument('--topology',
@@ -44,28 +52,23 @@ def get_args():
             default=False,
             help='Periodic.')
 
-    parser.add_argument('--saveas',
-            type=str,
-            help='File to save in directory.')
-
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = get_args()
 
     dirsfile = args.dirs
     function = args.function 
+    coordfile = args.coordfile
+    coordname = coordfile.split(".")[0]
+    n_bins = args.n_bins
     chunksize = args.chunksize
     topology = args.topology
     periodic = args.periodic
-
+ 
     util.check_if_supported(function)
-
-    if args.saveas is None:
-        save_coord_as = {"step":"Q.dat","tanh":"Qtanh.dat","w_tanh":"Qtanh_w.dat"}[function]
-    else:
-        save_coord_as = args.saveas
 
     # Data source
     cwd = os.getcwd()
@@ -73,6 +76,7 @@ if __name__ == "__main__":
     dir = os.path.dirname(trajfiles[0])
     n_native_pairs = len(open("%s/native_contacts.ndx" % dir).readlines()) - 1
     r0 = np.loadtxt("%s/pairwise_params" % dir,usecols=(4,),skiprows=1)[1:2*n_native_pairs:2] + 0.1
+    coord_sources = [ "%s/%s" % (os.path.dirname(trajfiles[i]),args.coordfile) for i in range(len(trajfiles)) ]
 
     # Get contact function parameters
     if function == "w_tanh":
@@ -93,9 +97,25 @@ if __name__ == "__main__":
     else:
         raise IOError("--function must be in: %s" % util.supported_functions.keys().__str__())
 
-    # Parameterize contact-based reaction coordinate
-    contact_function = util.get_sum_contact_function(pairs,function,contact_params,periodic=periodic)
+    if not all([ os.path.exists(coord_sources[i]) for i in range(len(coord_sources)) ]):
+        # Parameterize contact-based reaction coordinate
+        contact_function = util.get_sum_contact_function(pairs,function,contact_params,periodic=periodic)
 
-    # Calculate contact function over directories
-    util.calc_coordinate_multiple_trajs(trajfiles,contact_function,topology,chunksize,save_coord_as=save_coord_as)
+        # Calculate contact function over directories
+        contacts = util.calc_coordinate_multiple_trajs(trajfiles,contact_function,topology,chunksize,save_coord_as=args.coordfile,collect=True)
+    else:
+        # Load precalculated coordinate
+        contacts = [ np.loadtxt(coord_sources[i]) for i in range(len(coord_sources)) ]
+
+    # Parameterize pairwise contact function
+    pairwise_contact_function = util.get_pair_contact_function(pairs,function,contact_params,periodic=periodic)
+
+    # Calculate pairwise contacts over directories 
+    bin_edges,avgQi_by_bin = bin_multiple_coordinates_for_multiple_trajs(trajfiles,
+            contacts,pairwise_contact_function,pairs.shape[0],n_bins,topology,chunksize)
+
+    # Save  
+    #np.savetxt("",avgQi_by_bin)
+    #np.savetxt("bin_edges.dat",bin_edges)
+    #np.savetxt("mid_bin.dat",mid_bin)
 
