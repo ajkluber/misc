@@ -8,7 +8,6 @@ from memory_profiler import profile
 
 import mdtraj as md
 
-
 # TODO: Split up calculation of native and nonnative contacts. Non-native contacts take up too much memory.
 
 def file_len(fname):
@@ -92,10 +91,11 @@ def get_native_nonnative_contacts(coord_file,temps_file,contact_type,continuous)
     contact_function = get_contact_function(contact_type,continuous)
     Qi_contacts, Ai_contacts, A = calculate_contacts(dirs,contact_function,native_pairs,nonnative_pairs,r0_native,r0_nonnative)
 
-    if coord_file == "Q.dat":
-        coord = np.sum(Qi_contacts,axis=1)
-    else:
-        coord = np.concatenate([ np.loadtxt("%s/%s" % (dirs[i],coord_file)) for i in range(len(dirs)) ])
+    #if coord_file == "Q.dat":
+    #    coord = np.sum(Qi_contacts,axis=1)
+    #else:
+
+    coord = np.concatenate([ np.loadtxt("%s/%s" % (dirs[i],coord_file)) for i in range(len(dirs)) ])
 
     offset = 0
     for i in range(len(dirs)):
