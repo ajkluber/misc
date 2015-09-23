@@ -47,6 +47,19 @@ def get_edwards_anderson_observable(pairs,function_type,contact_params,periodic=
         #return np.sum(contact_function(r,*contact_params),axis=1)
     return obs_function
 
+def get_contact_energy_function(pairs,pair_type,eps,contact_params,periodic=False):
+    """Returns a function that takes MDTraj Trajectory object and compute pairwise energy """
+    from model_builder.models.pairwise_potentials import get_pair_potential
+    def obs_function(trajchunk):
+        r = md.compute_distances(trajchunk,pairs,periodic=periodic)
+        Econtact = np.zeros(trajchunk.n_frames,float)
+        for i in range(pairs.shape[0]):
+            pair_Vi = get_pair_potential(pair_type[i])
+            Econtact += eps[i]*pair_Vi(r[:,i],*contact_params[i])
+        return Econtact
+    return obs_function
+
+
 ######################################################################
 # Contact functions
 ######################################################################
