@@ -56,8 +56,8 @@ if __name__ == "__main__":
 
     dirsfile = args.dirs
     function = args.function 
-    chunksize = args.chunksize
     topology = args.topology
+    chunksize = args.chunksize
     periodic = args.periodic
 
     util.check_if_supported(function)
@@ -72,7 +72,13 @@ if __name__ == "__main__":
     trajfiles = [ "%s/%s/traj.xtc" % (cwd,x.rstrip("\n")) for x in open(dirsfile,"r").readlines() ]
     dir = os.path.dirname(trajfiles[0])
     n_native_pairs = len(open("%s/native_contacts.ndx" % dir).readlines()) - 1
-    r0 = np.loadtxt("%s/pairwise_params" % dir,usecols=(4,),skiprows=1)[1:2*n_native_pairs:2] + 0.1
+    if os.path.exists("%s/pairwise_params" % dir):
+        r0 = np.loadtxt("%s/pairwise_params" % dir,usecols=(4,),skiprows=1)[1:2*n_native_pairs:2] + 0.1
+    elif os.path.exists("%s/native_contact_distances.dat" % dir):
+        r0 = np.loadtxt("%s/native_contact_distances.dat" % dir) + 0.1
+    else:
+        raise IOError("Need source for native contact distances!")
+    assert r0.shape[0] == n_native_pairs
 
     # Get contact function parameters
     if function == "w_tanh":
